@@ -1,0 +1,47 @@
+# Laravel Git Ignore File
+
+# Environment files
+.env
+.env.backup
+.env.*
+
+# Laravel specific files
+/vendor/
+/node_modules/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/logs/*.log
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test files
+check_permissions.php
+fix_auth.php
+fix_authentication_permanent.php
+fix_unauthorized_final.php
+test_auth.php
+test_auth_final.php
+test_login.php
+
+# Documentation files (optional - remove if you want to keep them)
+*.md
+!README.md
