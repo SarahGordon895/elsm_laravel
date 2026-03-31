@@ -32,6 +32,9 @@ class User extends Authenticatable
         'join_date',
         'employment_type',
         'profile_picture',
+        'notify_system',
+        'notify_email',
+        'notify_sms',
     ];
 
     protected $hidden = [
@@ -45,7 +48,25 @@ class User extends Authenticatable
         'join_date' => 'date',
         'status' => 'string',
         'role' => 'string',
+        'notify_system' => 'boolean',
+        'notify_email' => 'boolean',
+        'notify_sms' => 'boolean',
     ];
+
+    public function allowsSystemNotifications(): bool
+    {
+        return $this->notify_system ?? true;
+    }
+
+    public function allowsEmailNotifications(): bool
+    {
+        return $this->notify_email ?? true;
+    }
+
+    public function allowsSmsNotifications(): bool
+    {
+        return $this->notify_sms ?? true;
+    }
 
     public function getFullNameAttribute()
     {
@@ -92,6 +113,11 @@ class User extends Authenticatable
         return $this->hasMany(SystemNotification::class);
     }
 
+    public function notificationPreferences()
+    {
+        return $this->hasMany(UserNotificationPreference::class);
+    }
+
     public function unreadSystemNotifications()
     {
         return $this->systemNotifications()->unread();
@@ -122,6 +148,27 @@ class User extends Authenticatable
             return $this->roles->contains('name', $role);
         }
         return $this->roles->contains($role);
+    }
+
+    public static function normalizeRoleName(?string $role): string
+    {
+        return match ((string) $role) {
+            'superadmin' => 'super_admin',
+            'hod' => 'head_of_department',
+            'support' => 'employee',
+            default => (string) $role,
+        };
+    }
+
+    public function getEffectiveRole(): string
+    {
+        $roleFromColumn = self::normalizeRoleName($this->role);
+        if ($roleFromColumn !== '') {
+            return $roleFromColumn;
+        }
+
+        $roleFromPivot = $this->roles()->orderByDesc('level')->value('name');
+        return self::normalizeRoleName($roleFromPivot);
     }
 
     public function hasPermission($permission)
@@ -161,23 +208,26 @@ class User extends Authenticatable
 
     public function isAdmin()
     {
-        return $this->hasRole('admin') || $this->hasRole('super_admin') || 
-               $this->role === 'admin' || $this->role === 'super_admin';
+        $role = $this->getEffectiveRole();
+        return $this->hasRole('admin') || $this->hasRole('super_admin')
+            || in_array($role, ['admin', 'super_admin'], true);
     }
 
     public function isHR()
     {
-        return $this->hasRole('hr') || $this->role === 'hr';
+        return $this->hasRole('hr') || $this->getEffectiveRole() === 'hr';
     }
 
     public function isManager()
     {
-        return $this->hasRole('manager') || $this->subordinates()->count() > 0;
+        return $this->hasRole('manager')
+            || $this->getEffectiveRole() === 'head_of_department'
+            || $this->subordinates()->count() > 0;
     }
 
     public function isEmployee()
     {
-        return $this->hasRole('employee') || $this->role === 'employee';
+        return $this->hasRole('employee') || $this->getEffectiveRole() === 'employee';
     }
 
     public function isActive()

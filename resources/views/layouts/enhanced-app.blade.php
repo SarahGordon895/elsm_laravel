@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/png" href="{{ asset('imart-logo.png') }}">
     <title>@yield('title', 'ELMS - Professional Leave Management System')</title>
     
     <!-- Scripts -->
@@ -216,11 +218,13 @@
                             <i class="fas fa-bars text-xl"></i>
                         </button>
                         <div class="flex items-center ml-4">
-                            <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-calendar-alt text-white text-sm"></i>
+                            <div class="w-10 h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                                <img src="{{ asset('imart-logo.png') }}" alt="iMartGroup Logo" class="h-full w-auto max-w-none object-cover object-left" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-calendar-alt text-primary-600 text-sm\'></i>';">
                             </div>
-                            <span class="ml-3 text-xl font-semibold text-gray-900">ELMS</span>
-                            <span class="ml-2 text-sm text-gray-500 hidden sm:inline">Professional Leave Management</span>
+                            <div class="ml-3 leading-tight">
+                                <div class="text-base sm:text-lg font-semibold text-gray-900">iMartGroup ELMS</div>
+                                <div class="text-xs text-gray-500 hidden sm:block">Enterprise Leave Management</div>
+                            </div>
                         </div>
                     </div>
                     
@@ -231,7 +235,9 @@
                             <button class="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500">
                                 <i class="fas fa-bell text-lg"></i>
                                 @php
-                                    $unreadCount = \App\Models\Notification::where('user_id', auth()->user()->id)->where('read', false)->count();
+                                    $unreadCount = \App\Models\SystemNotification::where('user_id', auth()->id())
+                                        ->where('is_read', false)
+                                        ->count();
                                 @endphp
                                 @if($unreadCount > 0)
                                     <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 notification-badge"></span>
@@ -269,17 +275,24 @@
                                         <i class="fas fa-user mr-2"></i>
                                         My Profile
                                     </a>
-                                    <a href="{{ auth()->user()->role == 'head_of_department' ? route('hod.dashboard') : (auth()->user()->role == 'hr' ? route('hr.dashboard') : (auth()->user()->role == 'super_admin' ? route('dashboard') : route('dashboard'))) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <a href="{{ $dashboardRoute ?? (in_array(auth()->user()->role, ['super_admin', 'admin']) ? route('admin.dashboard') : (auth()->user()->role == 'hr' ? route('hr.dashboard') : (in_array(auth()->user()->role, ['head_of_department', 'hod']) ? route('hod.dashboard') : route('dashboard')))) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <i class="fas fa-tachometer-alt mr-2"></i>
                                         Dashboard
                                     </a>
-                                    @if(auth()->user()->hasPermission('view-leave-applications'))
+                                    @can('view-leave-applications')
                                         <a href="{{ route('leave-applications.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                             <i class="fas fa-calendar-alt mr-2"></i>
                                             My Applications
                                         </a>
-                                    @endif
+                                    @endcan
                                     <div class="border-t border-gray-100"></div>
+                                    <form action="{{ route('logout') }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                            <i class="fas fa-sign-out-alt mr-2"></i>
+                                            Logout
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -293,7 +306,13 @@
             <nav class="mt-5 px-2">
                 <div class="space-y-1">
                     <!-- Dashboard -->
-                    <a href="{{ auth()->user()->role == 'head_of_department' ? route('hod.dashboard') : (auth()->user()->role == 'hr' ? route('hr.dashboard') : (auth()->user()->role == 'super_admin' ? route('dashboard') : route('dashboard'))) }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('dashboard') || request()->routeIs('hod.dashboard') || request()->routeIs('hr.dashboard') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                    @php
+                        $role = auth()->user()->role;
+                        $dashboardRoute = in_array($role, ['super_admin', 'admin']) ? route('admin.dashboard')
+                            : ($role === 'hr' ? route('hr.dashboard')
+                            : (in_array($role, ['head_of_department', 'hod']) ? route('hod.dashboard') : route('dashboard')));
+                    @endphp
+                    <a href="{{ $dashboardRoute }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('dashboard') || request()->routeIs('hod.dashboard') || request()->routeIs('hr.dashboard') || request()->routeIs('admin.dashboard') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                         <i class="fas fa-tachometer-alt mr-3 text-lg"></i>
                         <span class="flex-1">Dashboard</span>
                     </a>
@@ -305,7 +324,7 @@
                         </div>
                         
                         <!-- Employee Leave Options -->
-                        @if(in_array(auth()->user()->role, ['employee', 'head_of_department']))
+                        @if(in_array(auth()->user()->role, ['employee']))
                             <a href="{{ route('leave-applications.index') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('leave-applications.index') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-calendar-alt mr-3 text-lg"></i>
                                 <span class="flex-1">My Applications</span>
@@ -315,9 +334,16 @@
                                 <span class="flex-1">Apply Leave</span>
                             </a>
                         @endif
+
+                        @if(in_array(auth()->user()->role, ['head_of_department', 'hod']))
+                            <a href="{{ route('leave-applications.index') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('leave-applications.index') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                                <i class="fas fa-calendar-alt mr-3 text-lg"></i>
+                                <span class="flex-1">Leave View</span>
+                            </a>
+                        @endif
                         
                         <!-- Management Leave Options -->
-                        @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr', 'head_of_department']))
+                        @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr']))
                             <a href="{{ route('leave-applications.index') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('leave-applications.index') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-tasks mr-3 text-lg"></i>
                                 <span class="flex-1">Leave Management</span>
@@ -331,8 +357,11 @@
                         </a>
                         
                         <!-- Pending Approval - Only for managers and admins -->
-                        @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr', 'head_of_department']))
-                            <a href="{{ route('pending.applications') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('pending.applications') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                        @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr']))
+                            @php
+                                $pendingRoute = auth()->user()->role === 'hr' ? route('hr.leave-applications') : route('pending.applications');
+                            @endphp
+                            <a href="{{ $pendingRoute }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('pending.applications') || request()->routeIs('hr.leave-applications') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-clipboard-check mr-3 text-lg"></i>
                                 <span class="flex-1">Pending Approval</span>
                                 @if(($pendingCount ?? 0) > 0)
@@ -340,19 +369,30 @@
                                 @endif
                             </a>
                         @endif
+
+                        @if(in_array(auth()->user()->role, ['head_of_department', 'hod']))
+                            <a href="{{ route('hod.departments') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('hod.departments') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                                <i class="fas fa-building mr-3 text-lg"></i>
+                                <span class="flex-1">Department</span>
+                            </a>
+                        @endif
                     </div>
                     
-                    <!-- User Management - Only for admins -->
+                    <!-- User Management - Admin and HR -->
                     @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr']))
                         <div class="space-y-1">
                             <div class="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 User Management
                             </div>
-                            <a href="{{ route('admin.users') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.users') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                            @php
+                                $employeeMgmtRoute = auth()->user()->role === 'hr' ? route('hr.users') : route('admin.users');
+                                $departmentMgmtRoute = auth()->user()->role === 'hr' ? route('hr.departments.manage') : route('admin.departments');
+                            @endphp
+                            <a href="{{ $employeeMgmtRoute }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.users*') || request()->routeIs('hr.users*') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-users mr-3 text-lg"></i>
                                 <span class="flex-1">Employees</span>
                             </a>
-                            <a href="{{ route('admin.departments') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.departments') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                            <a href="{{ $departmentMgmtRoute }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.departments*') || request()->routeIs('hr.departments*') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-building mr-3 text-lg"></i>
                                 <span class="flex-1">Departments</span>
                             </a>
@@ -381,7 +421,10 @@
                             <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-200"></div>
                             <i class="fas fa-bell mr-3 text-lg relative z-10"></i>
                             <span class="flex-1 relative z-10">My Notifications</span>
-                            @if(isset($notificationsCount) && $notificationsCount > 0)
+                            @php
+                                $notificationsCount = $notificationsCount ?? $unreadCount;
+                            @endphp
+                            @if($notificationsCount > 0)
                                 <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse relative z-10">
                                     {{ $notificationsCount }}
                                 </span>
@@ -391,12 +434,12 @@
                     </div>
                     
                     <!-- Reports - Only for admins and managers -->
-                    @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr', 'head_of_department']))
+                    @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'hr', 'head_of_department', 'hod']))
                         <div class="space-y-1">
                             <div class="px-2 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Reports
                             </div>
-                            <a href="{{ route('admin.reports') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.reports') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
+                            <a href="{{ route('analytics.leave') }}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md {{ request()->routeIs('admin.reports') || request()->routeIs('analytics.*') ? 'bg-primary-100 text-primary-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }} transition-colors duration-200">
                                 <i class="fas fa-chart-bar mr-3 text-lg"></i>
                                 <span class="flex-1">Analytics</span>
                             </a>
@@ -454,7 +497,7 @@
         @endauth
         
         <!-- Main Content -->
-        <main class="lg:pl-64 flex-1 min-h-screen">
+        <main class="lg:pl-64 flex-1 min-h-screen pt-16">
             <div class="py-8">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     @yield('content')
@@ -462,45 +505,20 @@
             </div>
         </main>
     </div>
-    
-    <!-- Mobile Sidebar Overlay -->
-    @auth
-        <div id="sidebarOverlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden hidden"></div>
-    @endauth
-                            <h3 class="text-sm font-medium text-red-800">Error</h3>
-                            <div class="mt-2 text-sm text-red-700">
-                                {{ session('error') }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
-            
-            @if(session('status'))
-                <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 animate-fade-in">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-check-circle text-green-400 text-lg"></i>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-green-800">Success</h3>
-                            <div class="mt-2 text-sm text-green-700">
-                                {{ session('status') }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
-        </main>
-    </div>
-    
-    <!-- Mobile Sidebar Overlay -->
-    @auth
-        <div id="sidebarOverlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden hidden"></div>
     @endauth
     
+    @php
+        $leaveBalances = $leaveBalances ?? (\Illuminate\Support\Facades\Auth::check()
+            ? \App\Models\LeaveBalance::where('user_id', auth()->id())
+                ->whereHas('leaveType', function ($query) {
+                    $query->where('is_active', true)->whereIn('name', ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave']);
+                })
+                ->with('leaveType')
+                ->get()
+            : collect());
+    @endphp
     <!-- Leave Balance Modal -->
-    @if(isset($leaveBalances))
+    @if($leaveBalances->count() > 0)
     <div id="leaveBalanceModal" 
          class="fixed inset-0 z-50 overflow-y-auto modal-backdrop opacity-0" style="display: none;">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -517,21 +535,25 @@
                             </h3>
                             <div class="space-y-3">
                                 @foreach($leaveBalances as $balance)
+                                    @php
+                                        $remaining = max(0, ($balance->balance_days + $balance->carry_over_days) - $balance->used_days);
+                                        $allocation = max(1, $balance->balance_days + $balance->carry_over_days);
+                                        $percent = min(100, round(($remaining / $allocation) * 100));
+                                    @endphp
                                     <div class="border border-gray-200 rounded-lg p-4">
                                         <div class="flex justify-between items-center mb-2">
                                             <h4 class="text-sm font-medium text-gray-900">
-                                            {{ $balance->leave_type ? $balance->leave_type->name : 'Leave Type' }}
+                                            {{ $balance->leaveType ? $balance->leaveType->name : 'Leave Type' }}
                                         </h4>
                                             <span class="text-lg font-semibold text-primary-600">
-                                                {{ $balance->balance_days - $balance->used_days }} / {{ $balance->balance_days }}
+                                                {{ $remaining }} / {{ $allocation }} days
                                             </span>
                                         </div>
                                         <div class="text-xs text-gray-500 mb-2">
-                                            Used: {{ $balance->used_days }} days | Available: {{ $balance->balance_days - $balance->used_days }} days
+                                            Allocated: {{ $allocation }} days | Used: {{ $balance->used_days }} days | Remaining: {{ $remaining }} days
                                         </div>
                                         <div class="w-full bg-gray-200 rounded-full h-3">
-                                            <div class="bg-primary-600 h-3 rounded-full transition-all duration-300" 
-                                                 :style="`width: {{ ($balance->balance_days - $balance->used_days) / $balance->balance_days * 100 }}%`"></div>
+                                            <div class="bg-primary-600 h-3 rounded-full transition-all duration-300" style="width: {{ $percent }}%"></div>
                                         </div>
                                     </div>
                                 @endforeach
@@ -550,8 +572,16 @@
     </div>
     @endif
 
+    @php
+        $notifications = $notifications ?? (\Illuminate\Support\Facades\Auth::check()
+            ? \App\Models\SystemNotification::where('user_id', auth()->id())
+                ->latest()
+                ->take(20)
+                ->get()
+            : collect());
+    @endphp
     <!-- Notifications Modal -->
-    @if(isset($notifications))
+    @if($notifications->count() > 0 || \Illuminate\Support\Facades\Auth::check())
     <div id="notificationsModal" 
          class="fixed inset-0 z-50 overflow-y-auto modal-backdrop" style="display: none;">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

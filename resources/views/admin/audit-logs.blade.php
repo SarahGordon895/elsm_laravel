@@ -262,7 +262,7 @@ function exportAuditLogs() {
     const params = new URLSearchParams(url.search);
     
     // Build export URL with current filters
-    const exportUrl = new URL('/admin/audit-logs/export', window.location.origin);
+    const exportUrl = new URL('/admin/export/audit-logs', window.location.origin);
     
     // Add filter parameters to export URL
     if (params.get('action')) exportUrl.searchParams.set('action', params.get('action'));
@@ -300,5 +300,4 @@ setInterval(() => {
     }
 }, 30000);
 </script>
-@endsection
 @endsection

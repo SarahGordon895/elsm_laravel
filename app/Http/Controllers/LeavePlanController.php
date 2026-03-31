@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\LeavePlanCreated;
+use App\Events\LeavePlanStatusChanged;
 use App\Models\LeavePlan;
 use App\Models\LeaveType;
-use App\Models\SystemNotification;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -198,36 +198,7 @@ class LeavePlanController extends Controller
             'expiry_date' => $validated['expiry_date'],
         ]);
 
-        // Send notification to HR
-        $hrUsers = User::whereHas('roles', function($query) {
-            $query->where('name', 'hr');
-        })->get();
-
-        foreach ($hrUsers as $hr) {
-            SystemNotification::createNotification(
-                $hr->id,
-                'leave_plan_created',
-                'New Leave Plan Created',
-                Auth::user()->full_name . ' has created a leave plan for ' . $leaveType->name . ' and is awaiting your approval.',
-                'system',
-                [
-                    'leave_plan_id' => $leavePlan->id,
-                    'employee_name' => Auth::user()->full_name,
-                    'leave_type' => $leaveType->name,
-                ],
-                true, // send email
-                true  // send SMS
-            );
-        }
-
-        // Send notification to employee
-        SystemNotification::sendLeavePlanNotification(
-            Auth::id(),
-            'created',
-            ['leave_plan_id' => $leavePlan->id],
-            true, // send email
-            true  // send SMS
-        );
+        event(new LeavePlanCreated($leavePlan, Auth::user(), $leaveType));
 
         return redirect()->route('leave-plans.index')
             ->with('success', 'Leave plan created successfully and sent for HR approval.');
@@ -282,14 +253,7 @@ class LeavePlanController extends Controller
             ]);
         }
 
-        // Send notification to employee
-        SystemNotification::sendLeavePlanNotification(
-            $leavePlan->user_id,
-            'approved',
-            ['leave_plan_id' => $leavePlan->id],
-            true, // send email
-            true  // send SMS
-        );
+        event(new LeavePlanStatusChanged($leavePlan, Auth::user(), 'approved'));
 
         return redirect()->route('leave-plans.index')
             ->with('success', 'Leave plan approved successfully.');
@@ -317,17 +281,12 @@ class LeavePlanController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
         ]);
 
-        // Send notification to employee
-        SystemNotification::sendLeavePlanNotification(
-            $leavePlan->user_id,
+        event(new LeavePlanStatusChanged(
+            $leavePlan,
+            Auth::user(),
             'rejected',
-            [
-                'leave_plan_id' => $leavePlan->id,
-                'rejection_reason' => $validated['rejection_reason'],
-            ],
-            true, // send email
-            true  // send SMS
-        );
+            $validated['rejection_reason']
+        ));
 
         return redirect()->route('leave-plans.index')
             ->with('success', 'Leave plan rejected successfully.');

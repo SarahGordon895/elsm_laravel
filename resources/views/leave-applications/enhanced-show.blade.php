@@ -66,7 +66,7 @@
                         <div>
                             <p class="text-sm font-medium text-gray-500">Manager</p>
                             <p class="text-lg font-medium text-gray-900">
-                                {{ $leaveApplication->user->manager?->full_name : 'Not assigned' }}
+                                {{ $leaveApplication->user->manager?->full_name ?? 'Not assigned' }}
                             </p>
                         </div>
                     </div>
@@ -183,7 +183,8 @@
 
             <!-- Action Buttons -->
             <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-                @if(auth()->user()->hasPermission('approve-leave') && $leaveApplication->status == 'pending')
+                @can('approve-leave')
+                @if($leaveApplication->status == 'pending')
                     <form action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -199,6 +200,7 @@
                         </button>
                     </form>
                 @endif
+                @endcan
                 
                 @if(!auth()->user()->isAdmin() && !auth()->user()->isHR() && $leaveApplication->status == 'pending')
                     <a href="{{ route('leave-applications.edit', $leaveApplication) }}" 

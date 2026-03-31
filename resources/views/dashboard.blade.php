@@ -150,22 +150,26 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             @if($leaveBalances && $leaveBalances->count() > 0)
                 @foreach($leaveBalances as $balance)
+                    @php
+                        $remaining = max(0, ($balance->balance_days + $balance->carry_over_days) - $balance->used_days);
+                        $allocation = max(1, $balance->balance_days + $balance->carry_over_days);
+                        $percent = min(100, round(($remaining / $allocation) * 100));
+                        $badgeClass = $remaining > 5 ? 'bg-green-100 text-green-800' : ($remaining > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
+                    @endphp
                     <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
                         <div class="flex items-center justify-between mb-2">
                             <h4 class="text-sm font-medium text-gray-900">
-                                {{ $balance->leave_type ? $balance->leave_type->name : 'Leave Type' }}
+                                {{ $balance->leaveType ? $balance->leaveType->name : 'Leave Type' }}
                             </h4>
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                  :class="$balance->balance_days - $balance->used_days > 5 ? 'bg-green-100 text-green-800' : ($balance->balance_days - $balance->used_days > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')">
-                                {{ $balance->balance_days - $balance->used_days }} days
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $badgeClass }}">
+                                {{ $remaining }} days
                             </span>
                         </div>
                         <div class="text-xs text-gray-500 mb-2">
-                            Total: {{ $balance->balance_days }} | Used: {{ $balance->used_days }} | Remaining: {{ $balance->balance_days - $balance->used_days }}
+                            Allocation: {{ $allocation }} | Used: {{ $balance->used_days }} | Remaining: {{ $remaining }}
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-primary-600 h-2 rounded-full transition-all duration-300" 
-                                 :style="`width: {{ ($balance->balance_days - $balance->used_days) / $balance->balance_days * 100 }}%`"></div>
+                            <div class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: {{ $percent }}%"></div>
                         </div>
                     </div>
                 @endforeach
@@ -330,21 +334,25 @@
                         </h3>
                         <div class="space-y-3">
                             @foreach($leaveBalances as $balance)
+                                @php
+                                    $remaining = max(0, ($balance->balance_days + $balance->carry_over_days) - $balance->used_days);
+                                    $allocation = max(1, $balance->balance_days + $balance->carry_over_days);
+                                    $percent = min(100, round(($remaining / $allocation) * 100));
+                                @endphp
                                 <div class="border border-gray-200 rounded-lg p-4">
                                     <div class="flex justify-between items-center mb-2">
                                         <h4 class="text-sm font-medium text-gray-900">
-                                            {{ $balance->leave_type ? $balance->leave_type->name : 'Leave Type' }}
+                                            {{ $balance->leaveType ? $balance->leaveType->name : 'Leave Type' }}
                                         </h4>
                                         <span class="text-lg font-semibold text-primary-600">
-                                            {{ $balance->balance_days - $balance->used_days }} / {{ $balance->balance_days }}
+                                            {{ $remaining }} / {{ $allocation }}
                                         </span>
                                     </div>
                                     <div class="text-xs text-gray-500 mb-2">
-                                        Used: {{ $balance->used_days }} days | Available: {{ $balance->balance_days - $balance->used_days }} days
+                                        Used: {{ $balance->used_days }} days | Remaining: {{ $remaining }} days
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-3">
-                                        <div class="bg-primary-600 h-3 rounded-full transition-all duration-300" 
-                                             :style="`width: {{ ($balance->balance_days - $balance->used_days) / $balance->balance_days * 100 }}%`"></div>
+                                        <div class="bg-primary-600 h-3 rounded-full transition-all duration-300" style="width: {{ $percent }}%"></div>
                                     </div>
                                 </div>
                             @endforeach
@@ -416,14 +424,4 @@
     </div>
 </div>
 
-<script>
-// Global functions for sidebar
-function showLeaveBalance() {
-    Alpine.store('dashboard').showLeaveBalanceModal = true;
-}
-
-function showNotifications() {
-    Alpine.store('dashboard').showNotificationsModal = true;
-}
-</script>
 @endsection

@@ -18,19 +18,25 @@ class RedirectIfAuthenticated
                 
                 // Redirect based on user role according to system flow
                 if ($user) {
-                    switch ($user->role) {
+                    $role = $user->getEffectiveRole();
+
+                    switch ($role) {
                         case 'super_admin':
                         case 'admin':
                             return redirect()->route('admin.dashboard');
                         case 'hr':
                             return redirect()->route('hr.dashboard');
-                        case 'hod':
                         case 'head_of_department':
                             return redirect()->route('hod.dashboard');
                         case 'employee':
                             return redirect()->route('dashboard');
                         default:
-                            return redirect()->route('dashboard');
+                            // Unknown role should not hit protected role routes and cause 403.
+                            Auth::logout();
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                            return redirect()->route('login')
+                                ->with('error', 'Your account role is invalid. Please contact system administrator.');
                     }
                 }
                 

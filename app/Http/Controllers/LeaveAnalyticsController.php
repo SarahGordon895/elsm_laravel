@@ -17,6 +17,9 @@ class LeaveAnalyticsController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('view-reports');
+        $allowedLeaveTypeNames = ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave'];
+
         // Get filter parameters
         $year = $request->get('year', Carbon::now()->year);
         $month = $request->get('month', null);
@@ -26,7 +29,10 @@ class LeaveAnalyticsController extends Controller
 
         // Base query
         $query = LeaveApplication::with(['user', 'leaveType', 'department'])
-            ->whereYear('start_date', $year);
+            ->whereYear('start_date', $year)
+            ->whereHas('leaveType', function ($q) use ($allowedLeaveTypeNames) {
+                $q->where('is_active', true)->whereIn('name', $allowedLeaveTypeNames);
+            });
 
         // Apply filters
         if ($month) {
@@ -95,7 +101,10 @@ class LeaveAnalyticsController extends Controller
 
         // Get filter options
         $departments = \App\Models\Department::orderBy('name')->get();
-        $leaveTypes = LeaveType::orderBy('name')->get();
+        $leaveTypes = LeaveType::where('is_active', true)
+            ->whereIn('name', $allowedLeaveTypeNames)
+            ->orderBy('name')
+            ->get();
         $years = range(Carbon::now()->year - 5, Carbon::now()->year);
         $months = [
             1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
@@ -125,6 +134,9 @@ class LeaveAnalyticsController extends Controller
      */
     public function export(Request $request)
     {
+        $this->authorize('view-reports');
+        $allowedLeaveTypeNames = ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave'];
+
         // Get filter parameters
         $year = $request->get('year', Carbon::now()->year);
         $month = $request->get('month', null);
@@ -134,7 +146,10 @@ class LeaveAnalyticsController extends Controller
 
         // Base query
         $query = LeaveApplication::with(['user', 'leaveType', 'department'])
-            ->whereYear('start_date', $year);
+            ->whereYear('start_date', $year)
+            ->whereHas('leaveType', function ($q) use ($allowedLeaveTypeNames) {
+                $q->where('is_active', true)->whereIn('name', $allowedLeaveTypeNames);
+            });
 
         // Apply filters
         if ($month) {

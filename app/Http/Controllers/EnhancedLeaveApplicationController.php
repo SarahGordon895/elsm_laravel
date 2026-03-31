@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\LeaveApplicationStatusChanged;
+use App\Events\LeaveApplicationSubmitted;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\LeaveBalance;
 use App\Models\AuditLog;
-use App\Models\SystemNotification;
-use App\Models\User;
-use App\Notifications\LeaveApplicationSubmitted;
-use App\Notifications\LeaveApplicationApproved;
-use App\Notifications\LeaveApplicationRejected;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -62,10 +59,8 @@ class EnhancedLeaveApplicationController extends Controller
 
     public function pendingApplications(Request $request)
     {
-        // Simplified authorization check
-        if (!auth()->user()->hasPermission('approve-leave')) {
-            abort(403, 'You do not have permission to approve leave applications.');
-        }
+        // Keep this role-based to avoid false 403 when pivot permission data is incomplete.
+        $this->authorize('approve-leave');
         
         $user = Auth::user();
         $query = LeaveApplication::with(['user', 'leaveType'])
@@ -104,10 +99,16 @@ class EnhancedLeaveApplicationController extends Controller
         $this->authorize('create-leave-applications');
         
         $user = Auth::user();
-        $leaveTypes = LeaveType::where('is_active', true)->get();
+        $leaveTypes = LeaveType::where('is_active', true)
+            ->whereIn('name', ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave'])
+            ->get();
         
         // Get user's leave balances
         $leaveBalances = LeaveBalance::where('user_id', $user->id)
+            ->whereHas('leaveType', function ($query) {
+                $query->where('is_active', true)
+                    ->whereIn('name', ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave']);
+            })
             ->with('leaveType')
             ->get();
         
@@ -129,6 +130,10 @@ class EnhancedLeaveApplicationController extends Controller
 
         $user = Auth::user();
         $leaveType = LeaveType::findOrFail($request->leave_type_id);
+        $allowedLeaveTypes = ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave'];
+        if (!in_array($leaveType->name, $allowedLeaveTypes, true)) {
+            return back()->withInput()->with('error', 'This leave type is not available in current policy.');
+        }
         
         // Check leave balance
         $currentYear = date('Y');
@@ -143,6 +148,11 @@ class EnhancedLeaveApplicationController extends Controller
         
         if ($requestedDays > $availableDays) {
             return back()->withInput()->with('error', "Insufficient leave balance. Available: {$availableDays} days, Requested: {$requestedDays} days.");
+        }
+
+        // Annual leave gate: no annual leave means no annual application.
+        if ($leaveType->name === 'Annual Leave' && $leaveBalance->available_days <= 0) {
+            return back()->withInput()->with('error', 'Your annual leave balance is exhausted. You cannot apply annual leave.');
         }
         
         // Check for overlapping leave applications
@@ -187,41 +197,36 @@ class EnhancedLeaveApplicationController extends Controller
             
             // Update leave balance
             $leaveBalance->useDays($requestedDays);
+
+            $sickExtraAnnualDeduction = 0;
+
+            // Sick leave policy:
+            // If sick leave is more than one day and no supporting document is uploaded,
+            // deduct extra days (after day 1) from annual leave balance.
+            if ($leaveType->name === 'Sick Leave' && $requestedDays > 1 && !$request->hasFile('documents')) {
+                $extraDaysWithoutProof = $requestedDays - 1;
+                $annualLeaveType = LeaveType::where('name', 'Annual Leave')->first();
+                if ($annualLeaveType) {
+                    $annualBalance = LeaveBalance::getBalance($user->id, $annualLeaveType->id, $currentYear);
+                    if (!$annualBalance || $annualBalance->available_days < $extraDaysWithoutProof) {
+                        throw new \RuntimeException('Insufficient annual leave balance for sick leave proof policy.');
+                    }
+
+                    $annualBalance->useDays($extraDaysWithoutProof);
+                    $sickExtraAnnualDeduction = $extraDaysWithoutProof;
+                }
+            }
             
             // Log audit trail
             AuditLog::log('created', $leaveApplication, $user->id);
-            
-            // Send notifications to appropriate approvers
-            $approvers = $this->getApprovers($user);
-            
-            // Send system notifications to HR
-            $hrUsers = User::whereHas('roles', function($query) {
-                $query->where('name', 'hr');
-            })->get();
 
-            foreach ($hrUsers as $hr) {
-                SystemNotification::sendHRLeaveNotification(
-                    $hr->id,
-                    $user->full_name,
-                    $leaveType->name,
-                    $request->start_date . ' to ' . $request->end_date,
-                    true, // send email
-                    true  // send SMS
-                );
-            }
-            
-            // Send notification to employee
-            SystemNotification::sendLeaveApplicationNotification(
-                $user->id,
-                'applied',
-                [
-                    'leave_application_id' => $leaveApplication->id,
-                    'leave_type' => $leaveType->name,
-                    'dates' => $request->start_date . ' to ' . $request->end_date,
-                ],
-                true, // send email
-                true  // send SMS
-            );
+            event(new LeaveApplicationSubmitted(
+                $leaveApplication,
+                $user,
+                $leaveType,
+                $requestedDays,
+                $sickExtraAnnualDeduction
+            ));
             
             DB::commit();
             
@@ -230,7 +235,7 @@ class EnhancedLeaveApplicationController extends Controller
                 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withInput()->with('error', 'Failed to submit leave application. Please try again.');
+            return back()->withInput()->with('error', $e->getMessage() ?: 'Failed to submit leave application. Please try again.');
         }
     }
 
@@ -302,7 +307,8 @@ class EnhancedLeaveApplicationController extends Controller
         DB::beginTransaction();
         try {
             // Return days to balance
-            $requestedDays = $leaveApplication->start_date->diffInDays($leaveApplication->end_date) + 1;
+            $requestedDays = Carbon::parse($leaveApplication->start_date)
+                ->diffInDays(Carbon::parse($leaveApplication->end_date)) + 1;
             $currentYear = date('Y');
             $leaveBalance = LeaveBalance::getBalance($leaveApplication->user_id, $leaveApplication->leave_type_id, $currentYear);
             
@@ -348,20 +354,12 @@ class EnhancedLeaveApplicationController extends Controller
                 'admin_remarks' => $request->remarks,
             ]);
             
-            // Send notification to employee
-            $leaveApplication->user->notify(new LeaveApplicationApproved($leaveApplication));
-            
-            // Send system notification to employee
-            SystemNotification::sendLeaveApplicationNotification(
-                $leaveApplication->user_id,
+            event(new LeaveApplicationStatusChanged(
+                $leaveApplication,
+                $user,
                 'approved',
-                [
-                    'leave_application_id' => $leaveApplication->id,
-                    'approved_by' => $user->full_name,
-                ],
-                true, // send email
-                true  // send SMS
-            );
+                $request->remarks
+            ));
             
             // Log audit trail
             AuditLog::log('approved', $leaveApplication, $user->id);
@@ -393,7 +391,8 @@ class EnhancedLeaveApplicationController extends Controller
         DB::beginTransaction();
         try {
             // Return days to balance
-            $requestedDays = $leaveApplication->start_date->diffInDays($leaveApplication->end_date) + 1;
+            $requestedDays = Carbon::parse($leaveApplication->start_date)
+                ->diffInDays(Carbon::parse($leaveApplication->end_date)) + 1;
             $currentYear = date('Y');
             $leaveBalance = LeaveBalance::getBalance($leaveApplication->user_id, $leaveApplication->leave_type_id, $currentYear);
             
@@ -408,21 +407,12 @@ class EnhancedLeaveApplicationController extends Controller
                 'admin_remarks' => $request->rejection_reason,
             ]);
             
-            // Send notification to employee
-            $leaveApplication->user->notify(new LeaveApplicationRejected($leaveApplication, $request->rejection_reason));
-            
-            // Send system notification to employee
-            SystemNotification::sendLeaveApplicationNotification(
-                $leaveApplication->user_id,
+            event(new LeaveApplicationStatusChanged(
+                $leaveApplication,
+                $user,
                 'rejected',
-                [
-                    'leave_application_id' => $leaveApplication->id,
-                    'rejected_by' => $user->full_name,
-                    'rejection_reason' => $request->rejection_reason,
-                ],
-                true, // send email
-                true  // send SMS
-            );
+                $request->rejection_reason
+            ));
             
             // Log audit trail
             AuditLog::log('rejected', $leaveApplication, $user->id);
@@ -438,29 +428,4 @@ class EnhancedLeaveApplicationController extends Controller
         }
     }
 
-    private function getApprovers($user)
-    {
-        $approvers = collect();
-        
-        // Add manager if exists
-        if ($user->manager) {
-            $approvers->push($user->manager);
-        }
-        
-        // Add HR users
-        $hrUsers = \App\Models\User::whereHas('roles', function ($q) {
-            $q->where('name', 'hr');
-        })->get();
-        
-        $approvers = $approvers->merge($hrUsers);
-        
-        // Add admin users
-        $adminUsers = \App\Models\User::whereHas('roles', function ($q) {
-            $q->where('name', 'admin');
-        })->get();
-        
-        $approvers = $approvers->merge($adminUsers);
-        
-        return $approvers->unique('id');
-    }
 }

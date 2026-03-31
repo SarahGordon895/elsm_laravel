@@ -12,7 +12,7 @@
                 <p class="text-gray-600 mt-1">Update your leave plan details</p>
             </div>
             <div class="flex space-x-3">
-                <a href="{{ route('hr.leave-plans.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <a href="{{ route('leave-plans.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     <i class="fas fa-arrow-left mr-2"></i>
                     Back to Dashboard
                 </a>
@@ -25,7 +25,7 @@
         <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-lg font-medium text-gray-900">Leave Plan Information</h2>
         </div>
-        <form method="POST" action="{{ route('hr.leave-plans.update', $leavePlan) }}" class="p-6">
+        <form method="POST" action="{{ route('leave-plans.update', $leavePlan) }}" class="p-6">
             @csrf
             @method('PUT')
             
@@ -107,7 +107,7 @@
 
             <!-- Submit Buttons -->
             <div class="mt-6 flex justify-end space-x-3">
-                <a href="{{ route('hr.leave-plans.dashboard') }}" 
+                <a href="{{ route('leave-plans.index') }}" 
                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     Cancel
                 </a>

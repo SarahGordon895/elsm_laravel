@@ -10,12 +10,12 @@
             <h1 class="text-2xl font-semibold text-gray-900">Leave Applications</h1>
             <p class="mt-1 text-sm text-gray-500">Manage and track all leave requests</p>
         </div>
-        @if(auth()->user()->hasPermission('create-leave-applications'))
+        @can('create-leave-applications')
             <a href="{{ route('leave-applications.create') }}" class="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500">
                 <i class="fas fa-plus mr-2"></i>
                 New Application
             </a>
-        @endif
+        @endcan
     </div>
 
     <!-- Filters -->
@@ -145,7 +145,8 @@
                                         </form>
                                     @endif
                                     
-                                    @if(auth()->user()->hasPermission('approve-leave') && $application->status == 'pending')
+                                    @can('approve-leave')
+                                    @if($application->status == 'pending')
                                         <form action="{{ route('leave-applications.approve', $application) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit" class="text-green-600 hover:text-green-900">
@@ -159,6 +160,7 @@
                                             </button>
                                         </form>
                                     @endif
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

@@ -55,11 +55,17 @@
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-medium text-gray-900">Recent Notifications</h2>
                 <div class="flex space-x-2">
+                    @php
+                        $unreadCount = $notifications->getCollection()->filter(function ($n) {
+                            return isset($n->read_at) ? is_null($n->read_at) : !(bool) ($n->read ?? false);
+                        })->count();
+                        $readCount = $notifications->count() - $unreadCount;
+                    @endphp
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {{ $notifications->where('read_at', null)->count() }} Unread
+                        {{ $unreadCount }} Unread
                     </span>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {{ $notifications->where('read_at', '!=', null)->count() }} Read
+                        {{ $readCount }} Read
                     </span>
                 </div>
             </div>
@@ -67,7 +73,10 @@
         
         <div class="divide-y divide-gray-200">
             @forelse($notifications as $notification)
-                <div class="p-6 hover:bg-gray-50 transition-colors duration-200 {{ $notification->read_at ? '' : 'bg-blue-50' }}">
+                @php
+                    $isRead = isset($notification->read_at) ? !is_null($notification->read_at) : (bool) ($notification->read ?? false);
+                @endphp
+                <div class="p-6 hover:bg-gray-50 transition-colors duration-200 {{ $isRead ? '' : 'bg-blue-50' }}">
                     <div class="flex items-start space-x-4">
                         <div class="flex-shrink-0">
                             <div class="w-10 h-10 rounded-full flex items-center justify-center
@@ -90,7 +99,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between">
                                 <div class="flex-1">
-                                    <h3 class="text-sm font-medium text-gray-900 {{ $notification->read_at ? '' : 'font-bold' }}">
+                                    <h3 class="text-sm font-medium text-gray-900 {{ $isRead ? '' : 'font-bold' }}">
                                         {{ $notification->title }}
                                     </h3>
                                     <p class="mt-1 text-sm text-gray-600">{{ $notification->message }}</p>
@@ -98,10 +107,10 @@
                                         <span class="text-xs text-gray-500">
                                             {{ $notification->created_at->format('M d, Y h:i A') }}
                                         </span>
-                                        @if($notification->read_at)
+                                        @if($isRead)
                                             <span class="text-xs text-green-600">
                                                 <i class="fas fa-check-circle mr-1"></i>
-                                                Read {{ $notification->read_at->diffForHumans() }}
+                                                Read
                                             </span>
                                         @else
                                             <span class="text-xs text-blue-600 font-medium">
@@ -113,7 +122,7 @@
                                 </div>
                                 <div class="flex-shrink-0 ml-4">
                                     <div class="flex space-x-2">
-                                        @if($notification->read_at)
+                                        @if($isRead)
                                             <button onclick="markAsUnread({{ $notification->id }})" 
                                                     class="text-blue-600 hover:text-blue-800" title="Mark as unread">
                                                 <i class="fas fa-envelope"></i>
@@ -161,7 +170,7 @@
 
 <script>
 function markAsRead(id) {
-    fetch(`/notifications/${id}/read`, {
+    fetch(`/hr/notifications/${id}/read`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -176,7 +185,7 @@ function markAsRead(id) {
 }
 
 function markAsUnread(id) {
-    fetch(`/notifications/${id}/unread`, {
+    fetch(`/hr/notifications/${id}/unread`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -192,7 +201,7 @@ function markAsUnread(id) {
 
 function deleteNotification(id) {
     if (confirm('Are you sure you want to delete this notification?')) {
-        fetch(`/notifications/${id}`, {
+        fetch(`/hr/notifications/${id}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -208,7 +217,7 @@ function deleteNotification(id) {
 }
 
 function markAllAsRead() {
-    fetch('/notifications/mark-all-read', {
+    fetch('/hr/notifications/mark-all-read', {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',

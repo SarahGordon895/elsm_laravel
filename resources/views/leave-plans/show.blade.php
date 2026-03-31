@@ -17,7 +17,8 @@
                 </div>
             </div>
             <div class="flex space-x-2">
-                @if($leavePlan->status === 'pending' && auth()->user()->hasPermission('approve-leave-plans'))
+                @can('approve-leave-plans')
+                @if($leavePlan->status === 'pending')
                     <form action="{{ route('leave-plans.approve', $leavePlan) }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -27,14 +28,17 @@
                         </button>
                     </form>
                 @endif
+                @endcan
                 
-                @if($leavePlan->status === 'pending' && auth()->user()->hasPermission('reject-leave-plans'))
+                @can('reject-leave-plans')
+                @if($leavePlan->status === 'pending')
                     <button type="button" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                             onclick="openRejectModal({{ $leavePlan->id }})">
                         <i class="fas fa-times mr-2"></i>
                         Reject
                     </button>
                 @endif
+                @endcan
             </div>
         </div>
     </div>

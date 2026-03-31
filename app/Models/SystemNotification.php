@@ -93,19 +93,27 @@ class SystemNotification extends Model
         bool $sendEmail = false,
         bool $sendSMS = false
     ): self {
+        $user = User::find($userId);
+        $resolvedChannels = self::resolveChannels($user, $type);
+        $sendEmail = $sendEmail && $resolvedChannels['email'] && !empty($user?->email);
+        $sendSMS = $sendSMS && $resolvedChannels['sms'] && !empty($user?->phone_number);
+        $allowSystem = $resolvedChannels['system'];
+        $forceSystem = (bool) data_get($data, 'force_system', false);
+
         $notification = self::create([
             'user_id' => $userId,
             'type' => $type,
             'title' => $title,
             'message' => $message,
             'channel' => $channel,
+            // Preserve records for audit even when system notifications are muted.
+            'is_read' => !$allowSystem && !$forceSystem,
             'data' => $data,
         ]);
 
-        $user = User::find($userId);
         if ($user) {
             // Send email notification
-            if ($sendEmail && $user->email) {
+            if ($sendEmail) {
                 try {
                     Mail::raw($message, function ($mail) use ($user, $title) {
                         $mail->to($user->email)
@@ -117,13 +125,37 @@ class SystemNotification extends Model
             }
 
             // Send SMS notification
-            if ($sendSMS && $user->phone_number) {
+            if ($sendSMS) {
                 $smsService = new SMSService();
                 $smsService->sendToUser($user, $message);
             }
         }
 
         return $notification;
+    }
+
+    private static function resolveChannels(?User $user, string $type): array
+    {
+        if (!$user) {
+            return ['system' => true, 'email' => true, 'sms' => true];
+        }
+
+        $global = [
+            'system' => $user->allowsSystemNotifications(),
+            'email' => $user->allowsEmailNotifications(),
+            'sms' => $user->allowsSmsNotifications(),
+        ];
+
+        $preference = $user->notificationPreferences()->where('event_type', $type)->first();
+        if (!$preference) {
+            return $global;
+        }
+
+        return [
+            'system' => $preference->notify_system ?? $global['system'],
+            'email' => $preference->notify_email ?? $global['email'],
+            'sms' => $preference->notify_sms ?? $global['sms'],
+        ];
     }
 
     /**
@@ -240,7 +272,7 @@ class SystemNotification extends Model
         int $userId,
         bool $sendEmail = true,
         bool $sendSMS = true
-    ): self {
+    ): ?self {
         $user = User::find($userId);
         if (!$user) {
             return null;

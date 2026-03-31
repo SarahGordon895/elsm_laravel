@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class HeadOfDepartmentSeeder extends Seeder
 {
@@ -22,6 +24,23 @@ class HeadOfDepartmentSeeder extends Seeder
             return;
         }
 
+        $departmentQueryByCode = function (string $code): ?int {
+            if (!Schema::hasColumn('departments', 'code')) {
+                return null;
+            }
+            return Department::where('code', $code)->value('id');
+        };
+
+        $itDepartmentId = $departmentQueryByCode('IT001')
+            ?? Department::where('name', 'Information Technology')->value('id')
+            ?? Department::where('name', 'IT Department')->value('id');
+        $financeDepartmentId = $departmentQueryByCode('FIN001')
+            ?? Department::where('name', 'Finance & Accounting')->value('id')
+            ?? Department::where('name', 'Finance Department')->value('id');
+        $hrDepartmentId = $departmentQueryByCode('HR001')
+            ?? Department::where('name', 'Human Resources')->value('id')
+            ?? Department::where('name', 'HR Department')->value('id');
+
         // Create Head of Department users
         $hodUsers = [
             [
@@ -31,7 +50,7 @@ class HeadOfDepartmentSeeder extends Seeder
                 'email' => 'sarah.johnson@company.com',
                 'password' => Hash::make('hod123'),
                 'gender' => 'Female',
-                'department_id' => 3, // IT Department
+                'department_id' => $itDepartmentId,
                 'role' => 'head_of_department',
                 'status' => 'active',
                 'employment_type' => 'full_time',
@@ -44,7 +63,7 @@ class HeadOfDepartmentSeeder extends Seeder
                 'email' => 'michael.robinson@company.com',
                 'password' => Hash::make('hod123'),
                 'gender' => 'Male',
-                'department_id' => 4, // Finance Department
+                'department_id' => $financeDepartmentId,
                 'role' => 'head_of_department',
                 'status' => 'active',
                 'employment_type' => 'full_time',
@@ -57,11 +76,24 @@ class HeadOfDepartmentSeeder extends Seeder
                 'email' => 'jennifer.williams@company.com',
                 'password' => Hash::make('hod123'),
                 'gender' => 'Female',
-                'department_id' => 2, // HR Department
+                'department_id' => $hrDepartmentId,
                 'role' => 'head_of_department',
                 'status' => 'active',
                 'employment_type' => 'full_time',
                 'join_date' => now()->subYears(5),
+            ],
+            [
+                'employee_id' => 'HODSYS001',
+                'first_name' => 'M',
+                'last_name' => 'Gadi',
+                'email' => 'm.gadi@imartgroup.co.tz',
+                'password' => Hash::make('password123'),
+                'gender' => 'Male',
+                'department_id' => $itDepartmentId,
+                'role' => 'head_of_department',
+                'status' => 'active',
+                'employment_type' => 'full_time',
+                'join_date' => now()->subYears(3),
             ],
         ];
 
@@ -70,9 +102,12 @@ class HeadOfDepartmentSeeder extends Seeder
                 ['email' => $hodData['email']],
                 $hodData
             );
+            if ($hodUser->role !== 'head_of_department') {
+                $hodUser->update(['role' => 'head_of_department']);
+            }
             
             // Assign Head of Department role
-            $hodUser->roles()->syncWithoutDetaching([$hodRole->id]);
+            $hodUser->roles()->sync([$hodRole->id]);
             
             $this->command->info("Head of Department created: {$hodUser->full_name} ({$hodUser->email})");
         }

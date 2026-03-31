@@ -11,7 +11,7 @@
                 <div>
                     <h1 class="text-2xl font-bold">Head of Department Dashboard</h1>
                     <p class="text-blue-100 mt-1">Welcome back, {{ Auth::user()->full_name }}!</p>
-                    <p class="text-blue-200 text-sm mt-2">{{ Auth::user()->department->name ?? 'Your Department' }}</p>
+                    <p class="text-blue-200 text-sm mt-2">{{ Auth::user()->department?->name ?? 'Your Department' }}</p>
                 </div>
                 <div class="text-right">
                     <div class="text-3xl font-bold">{{ now()->format('M d, Y') }}</div>
@@ -23,11 +23,11 @@
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Pending Leave Requests -->
+        <!-- Team Leave Requests -->
         <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500 hover:shadow-lg transition-shadow duration-200">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm font-medium text-gray-600">Pending Requests</p>
+                    <p class="text-sm font-medium text-gray-600">Team Leave Requests</p>
                     <p class="text-2xl font-bold text-gray-900">{{ $pendingCount ?? 0 }}</p>
                 </div>
                 <div class="bg-yellow-100 rounded-full p-3">
@@ -80,13 +80,13 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Leave Requests Section -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Pending Leave Requests -->
+            <!-- Leave Requests (View Only) -->
             <div class="bg-white rounded-lg shadow-md">
                 <div class="px-6 py-4 border-b border-gray-200">
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-medium text-gray-900">
                             <i class="fas fa-clock mr-2 text-yellow-500"></i>
-                            Pending Leave Requests
+                            Team Leave View
                         </h2>
                         <a href="{{ route('leave-applications.index') }}" 
                            class="text-sm text-primary-600 hover:text-primary-500 font-medium">
@@ -112,20 +112,10 @@
                                         <div class="text-right">
                                             <p class="text-sm text-gray-500">{{ $application->start_date->format('M d, Y') }}</p>
                                             <p class="text-sm text-gray-500">to {{ $application->end_date->format('M d, Y') }}</p>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                Pending
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $application->status === 'approved' ? 'bg-green-100 text-green-800' : ($application->status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
+                                                {{ ucfirst($application->status) }}
                                             </span>
                                         </div>
-                                    </div>
-                                    <div class="mt-3 flex space-x-2">
-                                        <button onclick="approveLeave({{ $application->id }})" 
-                                                class="flex-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors duration-200">
-                                            <i class="fas fa-check mr-1"></i> Approve
-                                        </button>
-                                        <button onclick="rejectLeave({{ $application->id }})" 
-                                                class="flex-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors duration-200">
-                                            <i class="fas fa-times mr-1"></i> Reject
-                                        </button>
                                     </div>
                                 </div>
                             @endforeach
@@ -152,13 +142,18 @@
                     @if(isset($recentActivities) && $recentActivities->count() > 0)
                         <div class="space-y-3">
                             @foreach($recentActivities as $activity)
+                                @php
+                                    $activityType = is_array($activity) ? ($activity['type'] ?? 'pending') : ($activity->type ?? 'pending');
+                                    $activityDescription = is_array($activity) ? ($activity['description'] ?? 'Activity update') : ($activity->description ?? 'Activity update');
+                                    $activityCreatedAt = is_array($activity) ? ($activity['created_at'] ?? now()) : ($activity->created_at ?? now());
+                                @endphp
                                 <div class="flex items-start space-x-3">
                                     <div class="flex-shrink-0">
-                                        @if($activity->type == 'approved')
+                                        @if($activityType == 'approved')
                                             <div class="bg-green-100 rounded-full p-2">
                                                 <i class="fas fa-check text-green-600 text-sm"></i>
                                             </div>
-                                        @elseif($activity->type == 'rejected')
+                                        @elseif($activityType == 'rejected')
                                             <div class="bg-red-100 rounded-full p-2">
                                                 <i class="fas fa-times text-red-600 text-sm"></i>
                                             </div>
@@ -170,10 +165,10 @@
                                     </div>
                                     <div class="flex-1">
                                         <p class="text-sm text-gray-900">
-                                            {{ $activity->description }}
+                                            {{ $activityDescription }}
                                         </p>
                                         <p class="text-xs text-gray-500 mt-1">
-                                            {{ $activity->created_at->diffForHumans() }}
+                                            {{ \Illuminate\Support\Carbon::parse($activityCreatedAt)->diffForHumans() }}
                                         </p>
                                     </div>
                                 </div>
@@ -210,7 +205,12 @@
                         <i class="fas fa-list mr-2"></i>
                         View All Requests
                     </a>
-                    <a href="{{ route('reports.team') }}" 
+                    <a href="{{ route('hod.departments') }}" 
+                       class="block w-full text-center bg-indigo-600 text-white px-4 py-3 rounded-md font-medium hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105">
+                        <i class="fas fa-building mr-2"></i>
+                        Department
+                    </a>
+                    <a href="{{ route('analytics.leave') }}" 
                        class="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200 transform hover:scale-105">
                         <i class="fas fa-chart-bar mr-2"></i>
                         Team Reports
@@ -252,7 +252,7 @@
                     <div class="space-y-3">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Department</p>
-                            <p class="text-gray-900">{{ Auth::user()->department->name ?? 'Not Assigned' }}</p>
+                            <p class="text-gray-900">{{ Auth::user()->department?->name ?? 'Not Assigned' }}</p>
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-600">Manager</p>
@@ -269,58 +269,4 @@
     </div>
 </div>
 
-<script>
-// Approve leave function
-function approveLeave(id) {
-    if (confirm('Are you sure you want to approve this leave request?')) {
-        fetch(`/leave-applications/${id}/approve`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Failed to approve leave request.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while approving leave request.');
-        });
-    }
-}
-
-// Reject leave function
-function rejectLeave(id) {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (reason) {
-        fetch(`/leave-applications/${id}/reject`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Failed to reject leave request.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while rejecting leave request.');
-        });
-    }
-}
-</script>
 @endsection

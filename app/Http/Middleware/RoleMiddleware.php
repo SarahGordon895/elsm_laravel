@@ -17,9 +17,10 @@ class RoleMiddleware
         // Split multiple roles by comma
         $allowedRoles = explode(',', $roles);
         $allowedRoles = array_map('trim', $allowedRoles);
+        $allowedRoles = array_map([\App\Models\User::class, 'normalizeRoleName'], $allowedRoles);
         
         $user = Auth::user();
-        $userRole = $user->role;
+        $userRole = $user->getEffectiveRole();
         
         // Check if user's role is in the allowed roles
         if (!in_array($userRole, $allowedRoles)) {

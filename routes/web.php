@@ -7,25 +7,27 @@ use App\Http\Controllers\EnhancedLeaveApplicationController;
 use App\Http\Controllers\EnhancedAdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeavePlanController;
+use App\Http\Controllers\LeaveAnalyticsController;
 
 // Guest Routes
 Route::get('/', function () {
     return view('welcome-enhanced');
 });
 
-Route::middleware('guest')->group(function () {
-    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::get('/employee/login', [AuthenticatedSessionController::class, 'createEmployeeLogin'])->name('employee.login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
-    Route::post('/employee/login', [AuthenticatedSessionController::class, 'storeEmployee'])->name('employee.login.store');
-});
+// Login forms should always be reachable from welcome page.
+Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+Route::get('/employee/login', [AuthenticatedSessionController::class, 'createEmployeeLogin'])->name('employee.login');
+
+// Allow login submit handlers to always run; controller enforces role portal rules.
+Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+Route::post('/employee/login', [AuthenticatedSessionController::class, 'storeEmployee'])->name('employee.login.store');
 
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
-    // Admin Routes (Super Admin, Admin)
-    Route::middleware(['role:super_admin,admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Management Routes (Super Admin, Admin, HR)
+    Route::middleware(['role:super_admin,admin,hr,head_of_department,hod'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [EnhancedAdminController::class, 'dashboard'])->name('dashboard');
         
         // User Management
@@ -80,22 +82,42 @@ Route::middleware(['auth'])->group(function () {
         // Departments (HR can only view)
         Route::get('/departments', [EnhancedAdminController::class, 'hrDepartments'])->name('departments');
         
+        // Employee Management (HR CRUD)
+        Route::get('/users', [EnhancedAdminController::class, 'users'])->name('users');
+        Route::get('/users/create', [EnhancedAdminController::class, 'createUser'])->name('users.create');
+        Route::post('/users', [EnhancedAdminController::class, 'storeUser'])->name('users.store');
+        Route::get('/users/{user}/edit', [EnhancedAdminController::class, 'editUser'])->name('users.edit');
+        Route::put('/users/{user}', [EnhancedAdminController::class, 'updateUser'])->name('users.update');
+        Route::post('/users/{user}/toggle-status', [EnhancedAdminController::class, 'toggleUserStatus'])->name('users.toggle-status');
+
+        // Department Management (HR CRUD)
+        Route::get('/departments/manage', [EnhancedAdminController::class, 'departments'])->name('departments.manage');
+        Route::get('/departments/create', [EnhancedAdminController::class, 'createDepartment'])->name('departments.create');
+        Route::post('/departments', [EnhancedAdminController::class, 'storeDepartment'])->name('departments.store');
+        Route::get('/departments/{department}/edit', [EnhancedAdminController::class, 'editDepartment'])->name('departments.edit');
+        Route::put('/departments/{department}', [EnhancedAdminController::class, 'updateDepartment'])->name('departments.update');
+        Route::delete('/departments/{department}', [EnhancedAdminController::class, 'deleteDepartment'])->name('departments.delete');
+        
         // Notifications
         Route::get('/notifications', [EnhancedAdminController::class, 'hrNotifications'])->name('notifications');
+        Route::post('/notifications/mark-all-read', [EnhancedAdminController::class, 'hrMarkAllNotificationsRead'])->name('notifications.mark-all-read');
+        Route::post('/notifications/{notification}/read', [EnhancedAdminController::class, 'hrMarkNotificationRead'])->name('notifications.read');
+        Route::post('/notifications/{notification}/unread', [EnhancedAdminController::class, 'hrMarkNotificationUnread'])->name('notifications.unread');
+        Route::delete('/notifications/{notification}', [EnhancedAdminController::class, 'hrDeleteNotification'])->name('notifications.delete');
     });
 
-    // Employee and Head of Department Routes
-    Route::middleware(['role:employee,head_of_department,hod'])->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
-        Route::put('/profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
-        Route::put('/profile/password', [DashboardController::class, 'updatePassword'])->name('profile.password.update');
-    });
+    // Profile Routes (authenticated users)
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
+    Route::put('/profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/password', [DashboardController::class, 'updatePassword'])->name('profile.password.update');
+    Route::put('/profile/notifications', [DashboardController::class, 'updateNotificationPreferences'])->name('profile.notifications.update');
+    Route::put('/profile/notifications/events', [DashboardController::class, 'updateNotificationEventPreferences'])->name('profile.notifications.events.update');
 
-    // Analytics Routes
-    Route::middleware(['auth'])->prefix('analytics')->name('analytics.')->group(function () {
+    // Analytics Routes (authenticated users; controller gates enforce permission)
+    Route::prefix('analytics')->name('analytics.')->group(function () {
         Route::get('/leave', [LeaveAnalyticsController::class, 'index'])->name('leave');
-        Route::post('/export', [LeaveAnalyticsController::class, 'export'])->name('export');
+        Route::match(['get', 'post'], '/export', [LeaveAnalyticsController::class, 'export'])->name('export');
     });
     Route::resource('leave-applications', EnhancedLeaveApplicationController::class)->names([
         'index' => 'leave-applications.index',
@@ -108,7 +130,7 @@ Route::middleware(['auth'])->group(function () {
     ]);
 
     // Leave application actions (protected by role middleware)
-    Route::middleware(['role:super_admin,admin,hr,head_of_department,hod'])->group(function () {
+    Route::middleware(['role:super_admin,admin,hr'])->group(function () {
         Route::get('/pending-applications', [EnhancedLeaveApplicationController::class, 'pendingApplications'])
             ->name('pending.applications');
         Route::get('leave-applications/pending', [EnhancedLeaveApplicationController::class, 'pendingApplications'])
@@ -138,13 +160,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('leave-plans.reject');
 });
 
-Route::get('/test-pending', [EnhancedLeaveApplicationController::class, 'pendingApplications'])
-    ->name('test-pending');
-
 // Role-based dashboard routes
 Route::middleware(['auth', 'role:head_of_department,hod'])->group(function () {
     Route::get('/hod/dashboard', [EnhancedAdminController::class, 'hodDashboard'])
         ->name('hod.dashboard');
+    Route::get('/hod/departments', [EnhancedAdminController::class, 'departments'])
+        ->name('hod.departments');
 });
 
 Route::middleware(['auth', 'role:hr'])->group(function () {
@@ -153,9 +174,12 @@ Route::middleware(['auth', 'role:hr'])->group(function () {
 });
 
 // Admin Routes (protected by role middleware)
-Route::middleware(['role:super_admin,admin,hr'])->group(function () {
+Route::middleware(['role:super_admin,admin,hr,head_of_department,hod'])->group(function () {
     Route::get('/admin/reports', [EnhancedAdminController::class, 'reports'])
         ->name('admin.reports');
+});
+
+Route::middleware(['role:super_admin,admin,hr'])->group(function () {
     Route::get('/admin/settings', [EnhancedAdminController::class, 'settings'])
         ->name('admin.settings');
     Route::put('/admin/settings', [EnhancedAdminController::class, 'updateSettings'])

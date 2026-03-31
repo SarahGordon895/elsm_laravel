@@ -145,7 +145,7 @@ class ProfessionalDatabaseSeeder extends Seeder
         $managerRole->permissions()->attach($managerPermissions);
 
         // Employee permissions
-        $employeePermissions = Permission::where('name', [
+        $employeePermissions = Permission::whereIn('name', [
             'view-leave-applications', 'create-leave-applications', 'edit-leave-applications', 
             'delete-leave-applications', 'view-dashboard', 'view-notifications'
         ])->get();

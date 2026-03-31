@@ -11,12 +11,12 @@
                 <h1 class="text-2xl font-semibold text-gray-900">Leave Plans</h1>
                 <p class="mt-1 text-sm text-gray-500">Manage employee leave plans and allocations</p>
             </div>
-            @if(auth()->user()->hasPermission('manage-leave-plans'))
+            @can('manage-leave-plans')
                 <a href="{{ route('leave-plans.create') }}" class="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <i class="fas fa-plus mr-2"></i>
                     Create Leave Plan
                 </a>
-            @endif
+            @endcan
         </div>
     </div>
 
@@ -129,7 +129,8 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         
-                                        @if($leavePlan->status === 'pending' && auth()->user()->hasPermission('approve-leave-plans'))
+                                        @can('approve-leave-plans')
+                                        @if($leavePlan->status === 'pending')
                                             <form action="{{ route('leave-plans.approve', $leavePlan) }}" method="POST" class="inline">
                                                 @csrf
                                                 <button type="submit" class="text-green-600 hover:text-green-900" 
@@ -138,13 +139,16 @@
                                                 </button>
                                             </form>
                                         @endif
+                                        @endcan
                                         
-                                        @if($leavePlan->status === 'pending' && auth()->user()->hasPermission('reject-leave-plans'))
+                                        @can('reject-leave-plans')
+                                        @if($leavePlan->status === 'pending')
                                             <button type="button" class="text-red-600 hover:text-red-900"
                                                     onclick="openRejectModal({{ $leavePlan->id }})">
                                                 <i class="fas fa-times"></i>
                                             </button>
                                         @endif
+                                        @endcan
                                         
                                         @if($leavePlan->status !== 'approved' && $leavePlan->user_id === auth()->id())
                                             <form action="{{ route('leave-plans.destroy', $leavePlan) }}" method="POST" class="inline">
@@ -164,13 +168,13 @@
                                 <td colspan="7" class="px-6 py-12 text-center">
                                     <i class="fas fa-calendar-alt text-gray-400 text-4xl mb-4"></i>
                                     <p class="text-gray-500">No leave plans found.</p>
-                                    @if(auth()->user()->hasPermission('manage-leave-plans'))
+                                    @can('manage-leave-plans')
                                         <p class="text-gray-400 mt-2">
                                             <a href="{{ route('leave-plans.create') }}" class="text-primary-600 hover:text-primary-800">
                                                 Create your first leave plan
                                             </a>
                                         </p>
-                                    @endif
+                                    @endcan
                                 </td>
                             </tr>
                         @endforelse

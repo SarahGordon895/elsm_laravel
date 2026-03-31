@@ -367,7 +367,7 @@
 <script>
 function clearCache() {
     if (confirm('Are you sure you want to clear the system cache? This will temporarily slow down the system.')) {
-        fetch('/admin/settings/clear-cache', {
+        fetch('/admin/clear-cache', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -391,7 +391,7 @@ function clearCache() {
 
 function optimizeDatabase() {
     if (confirm('Are you sure you want to optimize the database? This may take a few moments.')) {
-        fetch('/admin/settings/optimize-database', {
+        fetch('/admin/optimize-database', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -413,9 +413,5 @@ function optimizeDatabase() {
     }
 }
 
-// Show general tab by default
-document.addEventListener('DOMContentLoaded', function() {
-    showTab('general');
-});
 </script>
 @endsection

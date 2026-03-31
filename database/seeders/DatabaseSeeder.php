@@ -10,6 +10,15 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             ProfessionalDatabaseSeeder::class,
+            CreateAdminUsersSeeder::class,
+            NewRolesAndPermissionsSeeder::class,
+            HeadOfDepartmentSeeder::class,
+            UpdateOrganizationalStructureSeeder::class,
+            FixSuperAdminPermissionsSeeder::class,
+            SyncUserRoleAssignmentsSeeder::class,
+            ResetEmployeePasswordsSeeder::class,
+            ResetAdminPortalPasswordsSeeder::class,
+            EnforceRequestedUserRolesSeeder::class,
         ]);
     }
 }

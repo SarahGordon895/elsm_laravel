@@ -45,7 +45,7 @@ class TestEmployeeLogin extends Command
         }
         
         // Test specific employee login
-        $testEmail = 'john.doe@company.com';
+        $testEmail = 'john.employee@imartgroup.co.tz';
         $testPassword = 'password123';
         
         $user = User::where('email', $testEmail)->first();
@@ -66,20 +66,6 @@ class TestEmployeeLogin extends Command
             }
         } else {
             $this->error('❌ User not found: ' . $testEmail);
-            
-            // Create the user with employee_id
-            $user = User::create([
-                'first_name' => 'John',
-                'last_name' => 'Doe',
-                'email' => $testEmail,
-                'password' => Hash::make($testPassword),
-                'role' => 'employee',
-                'department_id' => 1,
-                'employee_id' => 'EMP001',
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]);
-            $this->info('👤 Created new employee: ' . $testEmail);
         }
         
         // Now fix all existing employee passwords
@@ -87,8 +73,8 @@ class TestEmployeeLogin extends Command
         $employees = User::where('role', 'employee')->get();
         
         foreach ($employees as $employee) {
-            // Check if password is properly hashed (Laravel hashes start with $2y$10$)
-            if (!str_starts_with($employee->password, '$2y$')) {
+            // Ensure all employee passwords are set to the known default for testing.
+            if (!Hash::check($testPassword, $employee->password)) {
                 $this->info('Fixing password for: ' . $employee->email);
                 $employee->password = Hash::make($testPassword);
                 $employee->save();

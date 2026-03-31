@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ asset('imart-logo.png') }}">
     <title>iMartGroup Leave System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,8 +13,8 @@
         <div class="max-w-4xl w-full space-y-8">
             <!-- Header -->
             <div>
-                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 mb-6 shadow-lg">
-                    <i class="fas fa-calendar-alt text-white text-2xl"></i>
+                <div class="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 mb-6 shadow-lg overflow-hidden">
+                    <img src="{{ asset('imart-logo.png') }}" alt="ELMS Logo" class="h-full w-auto max-w-none object-cover object-left" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-calendar-alt text-white text-2xl\'></i>';">
                 </div>
                 <h2 class="mt-6 text-center text-4xl font-extrabold text-gray-900">
                     iMartGroup Leave System
@@ -54,14 +55,7 @@
                                 </div>
                                 <h4 class="text-lg font-bold text-purple-900 mb-2">Administrator Portal</h4>
                                 <p class="text-sm text-purple-700 mb-4">System Management & Administration</p>
-                                <div class="text-xs text-purple-600 space-y-1">
-                                    <p><i class="fas fa-check-circle mr-1"></i> Manage Users</p>
-                                    <p><i class="fas fa-check-circle mr-1"></i> Manage Departments</p>
-                                    <p><i class="fas fa-check-circle mr-1"></i> Approve/Reject Leave</p>
-                                    <p><i class="fas fa-check-circle mr-1"></i> View Reports</p>
-                                    <p><i class="fas fa-check-circle mr-1"></i> System Settings</p>
-                                    <p><i class="fas fa-check-circle mr-1"></i> Audit Logs</p>
-                                </div>
+                            
                             </div>
                             
                             <a href="/login" 

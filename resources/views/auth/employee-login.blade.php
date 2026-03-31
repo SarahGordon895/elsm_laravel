@@ -6,8 +6,8 @@
 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <div>
-            <div class="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-green-600 mb-4">
-                <i class="fas fa-user text-white text-xl"></i>
+            <div class="mx-auto h-14 w-14 flex items-center justify-center rounded-full bg-white border border-green-200 mb-4 overflow-hidden">
+                <img src="{{ asset('imart-logo.png') }}" alt="iMartGroup Logo" class="h-full w-auto max-w-none object-cover object-left">
             </div>
             <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
                 Employee Login
@@ -16,11 +16,11 @@
                 Sign in to your employee account
             </p>
             <div class="mt-4 text-center">
-                <p class="text-xs text-green-600 font-medium">Access for Employees and Head of Departments</p>
+                <p class="text-xs text-green-600 font-medium">Access for Employees only</p>
             </div>
         </div>
         
-        <form class="mt-8 space-y-6" method="POST" action="{{ route('employee.login.store') }}">
+        <form class="mt-8 space-y-6" method="POST" action="/employee/login">
             @csrf
             <div class="rounded-md shadow-sm -space-y-px">
                 <div>
@@ -70,7 +70,7 @@
             </div>
 
             <div class="text-center">
-                <a href="{{ url('/login') }}" class="font-medium text-purple-600 hover:text-purple-500">
+                <a href="/login" class="font-medium text-purple-600 hover:text-purple-500">
                     <i class="fas fa-user-shield mr-1"></i>
                     Administrator Login Portal
                 </a>

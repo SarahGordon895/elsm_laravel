@@ -160,19 +160,24 @@
         <h3 class="text-lg font-medium text-gray-900 mb-4">Available Leave Balance</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach($leaveBalances as $balance)
+                @php
+                    $remaining = max(0, ($balance->balance_days + $balance->carry_over_days) - $balance->used_days);
+                    $allocation = max(1, $balance->balance_days + $balance->carry_over_days);
+                    $percent = min(100, round(($remaining / $allocation) * 100));
+                    $badgeClass = $remaining > 5 ? 'bg-green-100 text-green-800' : ($remaining > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
+                @endphp
                 <div class="border border-gray-200 rounded-lg p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-medium text-gray-900">{{ $balance->leave_type ? $balance->leave_type->name : 'Leave Type' }}</h4>
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                              :class="$balance->balance_days - $balance->used_days > 5 ? 'bg-green-100 text-green-800' : ($balance->balance_days - $balance->used_days > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800')">
-                            {{ $balance->balance_days - $balance->used_days }} days
+                        <h4 class="text-sm font-medium text-gray-900">{{ $balance->leaveType ? $balance->leaveType->name : 'Leave Type' }}</h4>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $badgeClass }}">
+                            {{ $remaining }} days
                         </span>
                     </div>
                     <div class="text-xs text-gray-500">
-                        Total: {{ $balance->balance_days }} | Used: {{ $balance->used_days }} | Remaining: {{ $balance->balance_days - $balance->used_days }}
+                        Allocation: {{ $allocation }} | Used: {{ $balance->used_days }} | Remaining: {{ $remaining }}
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div class="bg-primary-600 h-2 rounded-full" style="width: {{ ($balance->balance_days - $balance->used_days) / $balance->balance_days * 100 }}%"></div>
+                        <div class="bg-primary-600 h-2 rounded-full" style="width: {{ $percent }}%"></div>
                     </div>
                 </div>
             @endforeach
@@ -181,28 +186,24 @@
 </div>
 
 <script>
-// Date validation
-document.getElementById('end_date').addEventListener('change', function() {
-    const startDate = new Date(document.getElementById('start_date').value);
-    const endDate = new Date(this.value);
-    const minDate = new Date(startDate);
-    
-    if (endDate < minDate) {
-        this.value = minDate.toISOString().split('T')[0];
-        document.getElementById('end_date').value = this.value;
-    }
-});
+document.addEventListener('DOMContentLoaded', function () {
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
 
-// File upload handling
-document.getElementById('fileInput').addEventListener('change', function(e) {
-    const files = e.target.files;
-    const fileNames = Array.from(files).map(file => file.name).join(', ');
-    document.querySelector('.text-gray-600').textContent = fileNames || 'No files selected';
-        endDate.min = this.value;
-        if (endDate.value && endDate.value < this.value) {
-            endDate.value = this.value;
-        }
-    });
+    if (startDate && endDate) {
+        startDate.addEventListener('change', function () {
+            endDate.min = this.value;
+            if (endDate.value && endDate.value < this.value) {
+                endDate.value = this.value;
+            }
+        });
+
+        endDate.addEventListener('change', function () {
+            if (startDate.value && this.value < startDate.value) {
+                this.value = startDate.value;
+            }
+        });
+    }
 });
 </script>
 @endsection

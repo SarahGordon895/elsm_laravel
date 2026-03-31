@@ -51,7 +51,7 @@ return [
     'imartgroup' => [
         'api_url' => env('SMS_API_URL', 'https://smsservice.imartgroup.co.tz/api/v3/sms/send'),
         'sender_id' => env('SMS_SENDER_ID', 'iMartGroup'),
-        'api_token' => env('SMS_API_TOKEN', '8|3xpIZ3iM4sSkbq2UiB9787dblc2yGel3SN1OGNP88b102083'),
+        'api_token' => env('SMS_API_TOKEN'),
     ],
 
 ];

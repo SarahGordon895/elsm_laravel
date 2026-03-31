@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -78,6 +79,21 @@ class CreateAdminUsersSeeder extends Seeder
                 'updated_at' => now(),
             ]
         );
+
+        // Keep role column and pivot assignments consistent.
+        $roleMap = Role::whereIn('name', ['hr', 'head_of_department', 'admin', 'super_admin'])
+            ->pluck('id', 'name');
+
+        foreach ([
+            $hrManager,
+            $hodManager,
+            $admin,
+            $superAdmin,
+        ] as $seededUser) {
+            if (isset($roleMap[$seededUser->role])) {
+                $seededUser->roles()->sync([$roleMap[$seededUser->role]]);
+            }
+        }
         
         $this->command->info('Admin users created/updated successfully!');
         $this->command->info('HR Manager: hr@company.com');

@@ -10,10 +10,12 @@ use App\Models\LeavePlan;
 use App\Models\Role;
 use App\Models\Permission;
 use App\Models\AuditLog;
+use App\Models\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class EnhancedAdminController extends Controller
@@ -42,6 +44,8 @@ class EnhancedAdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
+        $pendingCount = $pendingApplications->count();
+        $teamSize = $teamMembers->count();
         
         // Get approved today
         $approvedTodayCount = LeaveApplication::with(['user'])
@@ -133,8 +137,24 @@ class EnhancedAdminController extends Controller
         $application->approved_at = now();
         $application->save();
         
-        // Send notification to employee
-        // Add notification logic here
+        $actor = Auth::user();
+        $employee = $application->user;
+        if ($employee) {
+            SystemNotification::createNotification(
+                $employee->id,
+                'leave_application_approved_by_management',
+                'Leave Application Approved',
+                "Your leave application has been approved by {$actor->full_name} ({$this->actorRoleLabel($actor)}).",
+                'system',
+                [
+                    'leave_application_id' => $application->id,
+                    'approved_by' => $actor->full_name,
+                    'approved_by_role' => $this->actorRoleLabel($actor),
+                ],
+                true,
+                true
+            );
+        }
         
         return response()->json(['success' => true, 'message' => 'Leave application approved successfully']);
     }
@@ -154,18 +174,108 @@ class EnhancedAdminController extends Controller
         $application->rejection_reason = $request->reason;
         $application->save();
         
-        // Send notification to employee
-        // Add notification logic here
+        $actor = Auth::user();
+        $employee = $application->user;
+        if ($employee) {
+            SystemNotification::createNotification(
+                $employee->id,
+                'leave_application_rejected_by_management',
+                'Leave Application Rejected',
+                "Your leave application was rejected by {$actor->full_name} ({$this->actorRoleLabel($actor)}). Reason: {$request->reason}",
+                'system',
+                [
+                    'leave_application_id' => $application->id,
+                    'rejected_by' => $actor->full_name,
+                    'rejected_by_role' => $this->actorRoleLabel($actor),
+                    'reason' => $request->reason,
+                ],
+                true,
+                true
+            );
+        }
         
         return response()->json(['success' => true, 'message' => 'Leave application rejected successfully']);
     }
     public function hrNotifications()
     {
-        $notifications = \App\Models\Notification::where('user_id', Auth::id())
+        $query = \App\Models\Notification::where('user_id', Auth::id());
+
+        if (request()->filled('type')) {
+            $query->where('type', request()->string('type'));
+        }
+
+        if (request('status') === 'read') {
+            if (Schema::hasColumn('notifications', 'read_at')) {
+                $query->whereNotNull('read_at');
+            } else {
+                $query->where('read', true);
+            }
+        } elseif (request('status') === 'unread') {
+            if (Schema::hasColumn('notifications', 'read_at')) {
+                $query->whereNull('read_at');
+            } else {
+                $query->where('read', false);
+            }
+        }
+
+        $notifications = $query
             ->orderBy('created_at', 'desc')
             ->paginate(20);
             
         return view('hr.notifications', compact('notifications'));
+    }
+
+    public function hrMarkAllNotificationsRead()
+    {
+        $query = \App\Models\Notification::where('user_id', Auth::id());
+        if (Schema::hasColumn('notifications', 'read_at')) {
+            $query->update(['read_at' => now()]);
+        } else {
+            $query->update(['read' => true]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function hrMarkNotificationRead(\App\Models\Notification $notification)
+    {
+        if ((int) $notification->user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+
+        if (Schema::hasColumn('notifications', 'read_at')) {
+            $notification->update(['read_at' => now()]);
+        } else {
+            $notification->update(['read' => true]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function hrMarkNotificationUnread(\App\Models\Notification $notification)
+    {
+        if ((int) $notification->user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+
+        if (Schema::hasColumn('notifications', 'read_at')) {
+            $notification->update(['read_at' => null]);
+        } else {
+            $notification->update(['read' => false]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function hrDeleteNotification(\App\Models\Notification $notification)
+    {
+        if ((int) $notification->user_id !== (int) Auth::id()) {
+            abort(403);
+        }
+
+        $notification->delete();
+
+        return response()->json(['success' => true]);
     }
     public function hrDashboard()
     {
@@ -205,27 +315,24 @@ class EnhancedAdminController extends Controller
             ->limit(5)
             ->get();
         
-        // Get leave statistics
-        $leaveStats = [
-            'Annual Leave' => [
-                'count' => LeaveApplication::whereHas('leaveType', function($query) {
-                    $query->where('name', 'Annual Leave');
-                })->where('status', 'approved')->count(),
-                'percentage' => 75
-            ],
-            'Sick Leave' => [
-                'count' => LeaveApplication::whereHas('leaveType', function($query) {
-                    $query->where('name', 'Sick Leave');
-                })->where('status', 'approved')->count(),
-                'percentage' => 15
-            ],
-            'Personal Leave' => [
-                'count' => LeaveApplication::whereHas('leaveType', function($query) {
-                    $query->where('name', 'Personal Leave');
-                })->where('status', 'approved')->count(),
-                'percentage' => 10
-            ]
-        ];
+        // Get leave statistics from active leave policy types only.
+        $policyLeaveTypes = \App\Models\LeaveType::where('is_active', true)
+            ->whereIn('name', ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave'])
+            ->get();
+        $approvedByType = LeaveApplication::selectRaw('leave_type_id, COUNT(*) as total')
+            ->where('status', 'approved')
+            ->whereIn('leave_type_id', $policyLeaveTypes->pluck('id'))
+            ->groupBy('leave_type_id')
+            ->pluck('total', 'leave_type_id');
+        $approvedTotal = (int) $approvedByType->sum();
+        $leaveStats = [];
+        foreach ($policyLeaveTypes as $type) {
+            $count = (int) ($approvedByType[$type->id] ?? 0);
+            $leaveStats[$type->name] = [
+                'count' => $count,
+                'percentage' => $approvedTotal > 0 ? (int) round(($count / $approvedTotal) * 100) : 0,
+            ];
+        }
         
         // Get HR notifications
         $hrNotifications = collect([
@@ -273,6 +380,13 @@ class EnhancedAdminController extends Controller
             'pending_leaves' => LeaveApplication::where('status', 'pending')->count(),
             'approved_leaves' => LeaveApplication::where('status', 'approved')->count(),
             'rejected_leaves' => LeaveApplication::where('status', 'rejected')->count(),
+            // View compatibility keys used by enhanced dashboard cards.
+            'pending_applications' => LeaveApplication::where('status', 'pending')->count(),
+            'approved_today' => LeaveApplication::where('status', 'approved')->whereDate('approved_at', today())->count(),
+            'on_leave_today' => LeaveApplication::where('status', 'approved')
+                ->whereDate('start_date', '<=', today())
+                ->whereDate('end_date', '>=', today())
+                ->count(),
         ];
         
         // Recent applications
@@ -429,6 +543,22 @@ class EnhancedAdminController extends Controller
             
             // Log audit trail
             AuditLog::log('created', $user, Auth::id());
+
+            // Inform employee that account is created by HR/SuperAdmin/Admin.
+            $actor = Auth::user();
+            SystemNotification::createNotification(
+                $user->id,
+                'account_created_by_management',
+                'Account Created',
+                "Your account has been created by {$actor->full_name} ({$this->actorRoleLabel($actor)}). You can now login to the leave system.",
+                'system',
+                [
+                    'created_by' => $actor->full_name,
+                    'created_by_role' => $this->actorRoleLabel($actor),
+                ],
+                true,
+                true
+            );
             
             DB::commit();
             
@@ -487,6 +617,31 @@ class EnhancedAdminController extends Controller
         
         // Log audit trail
         AuditLog::log('updated', $user, Auth::id(), $oldValues);
+
+        $actor = Auth::user();
+        $changed = [];
+        foreach (['department_id', 'status', 'manager_id', 'employment_type', 'phone_number', 'address', 'city', 'country'] as $field) {
+            if (array_key_exists($field, $oldValues) && (string) $oldValues[$field] !== (string) $user->{$field}) {
+                $changed[] = $field;
+            }
+        }
+
+        if (!empty($changed)) {
+            SystemNotification::createNotification(
+                $user->id,
+                'profile_updated_by_management',
+                'Profile Updated by Management',
+                "Your profile details were updated by {$actor->full_name} ({$this->actorRoleLabel($actor)}). Updated fields: " . implode(', ', $changed) . ".",
+                'system',
+                [
+                    'updated_by' => $actor->full_name,
+                    'updated_by_role' => $this->actorRoleLabel($actor),
+                    'fields' => $changed,
+                ],
+                true,
+                true
+            );
+        }
         
         return redirect()->route('admin.users')
             ->with('success', 'User updated successfully.');
@@ -503,6 +658,23 @@ class EnhancedAdminController extends Controller
         
         // Log audit trail
         AuditLog::log('status_changed', $user, Auth::id(), ['status' => $oldStatus]);
+
+        $actor = Auth::user();
+        SystemNotification::createNotification(
+            $user->id,
+            'account_status_changed_by_management',
+            'Account Status Updated',
+            "Your account status was changed from {$oldStatus} to {$user->status} by {$actor->full_name} ({$this->actorRoleLabel($actor)}).",
+            'system',
+            [
+                'old_status' => $oldStatus,
+                'new_status' => $user->status,
+                'changed_by' => $actor->full_name,
+                'changed_by_role' => $this->actorRoleLabel($actor),
+            ],
+            true,
+            true
+        );
         
         return redirect()->back()
             ->with('success', 'User status updated successfully.');
@@ -861,7 +1033,30 @@ class EnhancedAdminController extends Controller
             'manager_id' => 'nullable|exists:users,id',
         ]);
 
+        $oldDepartment = $department->toArray();
         $department->update($request->all());
+
+        // Notify employees in this department that HR/SuperAdmin updated department details.
+        $actor = Auth::user();
+        $employees = User::where('department_id', $department->id)->where('status', 'active')->get();
+        foreach ($employees as $employee) {
+            SystemNotification::createNotification(
+                $employee->id,
+                'department_updated_by_management',
+                'Department Information Updated',
+                "Your department ({$department->name}) information was updated by {$actor->full_name} ({$this->actorRoleLabel($actor)}).",
+                'system',
+                [
+                    'department_id' => $department->id,
+                    'updated_by' => $actor->full_name,
+                    'updated_by_role' => $this->actorRoleLabel($actor),
+                    'old' => $oldDepartment,
+                    'new' => $department->toArray(),
+                ],
+                true,
+                false
+            );
+        }
 
         return response()->json(['success' => true, 'message' => 'Department updated successfully!']);
     }
@@ -901,5 +1096,10 @@ class EnhancedAdminController extends Controller
             default:
                 return $leaveType->max_days_per_year;
         }
+    }
+
+    private function actorRoleLabel(User $user): string
+    {
+        return ucfirst(str_replace('_', ' ', $user->role ?? 'management'));
     }
 }

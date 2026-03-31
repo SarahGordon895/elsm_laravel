@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/png" href="{{ asset('imart-logo.png') }}">
     <title>@yield('title', 'ELMS - Employee Leave Management System')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,7 +18,9 @@
                 <div class="flex justify-between h-16">
                     <div class="flex items-center">
                         <div class="flex-shrink-0 flex items-center">
-                            <i class="fas fa-calendar-alt text-blue-600 text-xl mr-2"></i>
+                            <span class="w-7 h-7 rounded-full overflow-hidden border border-gray-200 inline-flex items-center justify-center mr-2 bg-white">
+                                <img src="{{ asset('imart-logo.png') }}" alt="ELMS Logo" class="h-full w-auto max-w-none object-cover object-left" onerror="this.style.display='none'">
+                            </span>
                             <span class="text-lg font-semibold text-gray-900">ELMS</span>
                         </div>
                         

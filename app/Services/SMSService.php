@@ -16,7 +16,7 @@ class SMSService
     {
         $this->apiUrl = config('services.imartgroup.api_url', env('SMS_API_URL', 'https://smsservice.imartgroup.co.tz/api/v3/sms/send'));
         $this->senderId = config('services.imartgroup.sender_id', env('SMS_SENDER_ID', 'iMartGroup'));
-        $this->apiToken = config('services.imartgroup.api_token', env('SMS_API_TOKEN', '8|3xpIZ3iM4sSkbq2UiB9787dblc2yGel3SN1OGNP88b102083'));
+        $this->apiToken = config('services.imartgroup.api_token', env('SMS_API_TOKEN'));
     }
 
     /**
@@ -25,6 +25,11 @@ class SMSService
     public function sendSMS($to, $message): bool
     {
         try {
+            if (!$this->isConfigured()) {
+                Log::error('SMS service is not configured. Missing SMS_API_TOKEN or SMS provider settings.');
+                return false;
+            }
+
             // Format phone number
             $formattedPhone = $this->formatPhoneNumber($to);
             
@@ -42,14 +47,14 @@ class SMSService
             ];
 
             // Send SMS via iMartGroup API
-            $response = Http::post($this->apiUrl, $data);
+            $response = Http::timeout(20)->retry(2, 500)->post($this->apiUrl, $data);
             
             if ($response->successful()) {
                 Log::info("SMS sent to {$formattedPhone}: {$message}");
                 Log::info("SMS API Response: " . $response->body());
                 return true;
             } else {
-                Log::error("SMS API Error: " . $response->body());
+                Log::error("SMS API Error [{$response->status()}]: " . $response->body());
                 return false;
             }
 

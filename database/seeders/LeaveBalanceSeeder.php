@@ -20,12 +20,11 @@ class LeaveBalanceSeeder extends Seeder
         
         foreach ($users as $user) {
             foreach ($leaveTypes as $leaveType) {
-                // Calculate allocated days based on role and leave type
-                $allocatedDays = $this->calculateAllocatedDays($user, $leaveType);
+                $allocatedDays = $leaveType->max_days_per_year;
                 
                 // Only create balance if allocated days > 0
                 if ($allocatedDays > 0) {
-                    $balance = LeaveBalance::firstOrCreate(
+                    $balance = LeaveBalance::updateOrCreate(
                         [
                             'user_id' => $user->id,
                             'leave_type_id' => $leaveType->id,
@@ -48,31 +47,4 @@ class LeaveBalanceSeeder extends Seeder
         $this->command->info('Leave balance seeding completed successfully!');
     }
     
-    /**
-     * Calculate allocated days based on user role and leave type
-     */
-    private function calculateAllocatedDays($user, $leaveType): int
-    {
-        $baseDays = $leaveType->max_days_per_year;
-        
-        // Adjust based on user role
-        switch ($user->role) {
-            case 'super_admin':
-            case 'admin':
-            case 'hr':
-                // Admin staff get full allocation
-                return $baseDays;
-                
-            case 'head_of_department':
-                // HOD gets slightly more than regular employees
-                return (int) ($baseDays * 1.2);
-                
-            case 'employee':
-                // Regular employees get standard allocation
-                return $baseDays;
-                
-            default:
-                return $baseDays;
-        }
-    }
 }
