@@ -201,17 +201,17 @@
                 </div>
                 <div class="p-6 space-y-3">
                     <a href="{{ route('leave-applications.create') }}" 
-                       class="block w-full text-center bg-primary-600 text-white px-4 py-3 rounded-md font-medium hover:bg-primary-700 transition-colors duration-200">
+                       class="block w-full text-center bg-green-600 text-white px-4 py-3 rounded-md font-medium hover:bg-green-700 transition-colors duration-200 transform hover:scale-105">
                         <i class="fas fa-plus mr-2"></i>
                         Apply for Leave
                     </a>
                     <a href="{{ route('leave-applications.index') }}" 
-                       class="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md font-medium hover:bg-gray-200 transition-colors duration-200">
+                       class="block w-full text-center bg-gray-100 text-gray-700 px-4 py-3 rounded-md font-medium hover:bg-gray-200 transition-colors duration-200 transform hover:scale-105">
                         <i class="fas fa-list mr-2"></i>
                         View All Requests
                     </a>
                     <a href="{{ route('reports.team') }}" 
-                       class="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200">
+                       class="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200 transform hover:scale-105">
                         <i class="fas fa-chart-bar mr-2"></i>
                         Team Reports
                     </a>
@@ -231,7 +231,7 @@
                         <p class="text-sm text-gray-600 mb-4">{{ now()->format('F Y') }}</p>
                         <div class="grid grid-cols-7 gap-1 text-xs">
                             @for($day = 1; $day <= now()->daysInMonth; $day++)
-                                <div class="p-2 text-center {{ now()->day == $day ? 'bg-primary-600 text-white rounded' : 'text-gray-700' }}">
+                                <div class="p-2 text-center {{ now()->day == $day ? 'bg-blue-600 text-white rounded' : 'text-gray-700' }}">
                                     {{ $day }}
                                 </div>
                             @endfor

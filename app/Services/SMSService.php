@@ -4,23 +4,19 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
-use Twilio\Rest\Client;
+use Illuminate\Support\Facades\Http;
 
 class SMSService
 {
-    protected $client;
-    protected $fromNumber;
+    protected $apiUrl;
+    protected $senderId;
+    protected $apiToken;
 
     public function __construct()
     {
-        $this->fromNumber = config('services.twilio.from');
-        
-        $sid = config('services.twilio.sid');
-        $token = config('services.twilio.token');
-        
-        if ($sid && $token) {
-            $this->client = new Client($sid, $token);
-        }
+        $this->apiUrl = config('services.imartgroup.api_url', env('SMS_API_URL', 'https://smsservice.imartgroup.co.tz/api/v3/sms/send'));
+        $this->senderId = config('services.imartgroup.sender_id', env('SMS_SENDER_ID', 'iMartGroup'));
+        $this->apiToken = config('services.imartgroup.api_token', env('SMS_API_TOKEN', '8|3xpIZ3iM4sSkbq2UiB9787dblc2yGel3SN1OGNP88b102083'));
     }
 
     /**
@@ -29,12 +25,7 @@ class SMSService
     public function sendSMS($to, $message): bool
     {
         try {
-            if (!$this->client) {
-                Log::warning('Twilio client not configured. SMS not sent.');
-                return false;
-            }
-
-            // Format phone number (remove any non-digit characters except +)
+            // Format phone number
             $formattedPhone = $this->formatPhoneNumber($to);
             
             if (!$formattedPhone) {
@@ -42,16 +33,25 @@ class SMSService
                 return false;
             }
 
-            $message = $this->client->messages->create(
-                $formattedPhone,
-                [
-                    'from' => $this->fromNumber,
-                    'body' => $message
-                ]
-            );
+            // Prepare the request data
+            $data = [
+                'sender_id' => $this->senderId,
+                'recipient' => $formattedPhone,
+                'message' => $message,
+                'token' => $this->apiToken,
+            ];
 
-            Log::info("SMS sent to {$formattedPhone}: {$message}");
-            return true;
+            // Send SMS via iMartGroup API
+            $response = Http::post($this->apiUrl, $data);
+            
+            if ($response->successful()) {
+                Log::info("SMS sent to {$formattedPhone}: {$message}");
+                Log::info("SMS API Response: " . $response->body());
+                return true;
+            } else {
+                Log::error("SMS API Error: " . $response->body());
+                return false;
+            }
 
         } catch (\Exception $e) {
             Log::error("SMS sending failed: " . $e->getMessage());
@@ -73,29 +73,38 @@ class SMSService
     }
 
     /**
-     * Send leave application notification
+     * Send leave application notification to HR
      */
-    public function sendLeaveApplicationNotification(User $user, string $leaveType, string $dates): bool
+    public function sendLeaveApplicationToHR(User $employee, string $leaveType, string $dates): bool
     {
-        $message = "ELMS: {$user->full_name} has applied for {$leaveType} leave from {$dates}. Please review the application.";
-        return $this->sendToUser($user, $message);
+        $hrUsers = User::where('role', 'hr')->where('status', 'active')->get();
+        $success = true;
+        
+        foreach ($hrUsers as $hr) {
+            $message = "ELMS: {$employee->full_name} has applied for {$leaveType} leave from {$dates}. Please review the application.";
+            if (!$this->sendToUser($hr, $message)) {
+                $success = false;
+            }
+        }
+        
+        return $success;
     }
 
     /**
-     * Send leave approval notification
+     * Send leave approval notification to employee
      */
     public function sendLeaveApprovalNotification(User $user, string $leaveType, string $dates): bool
     {
-        $message = "ELMS: Your {$leaveType} leave from {$dates} has been approved. Enjoy your time off!";
+        $message = "ELMS: Your {$leaveType} leave from {$dates} has been APPROVED. Enjoy your time off!";
         return $this->sendToUser($user, $message);
     }
 
     /**
-     * Send leave rejection notification
+     * Send leave rejection notification to employee
      */
     public function sendLeaveRejectionNotification(User $user, string $leaveType, string $dates, string $reason = null): bool
     {
-        $message = "ELMS: Your {$leaveType} leave from {$dates} has been rejected.";
+        $message = "ELMS: Your {$leaveType} leave from {$dates} has been REJECTED.";
         if ($reason) {
             $message .= " Reason: {$reason}";
         }
@@ -103,14 +112,32 @@ class SMSService
     }
 
     /**
-     * Send leave plan notification
+     * Send leave plan notification to HR
      */
-    public function sendLeavePlanNotification(User $user, string $action, string $leaveType = null): bool
+    public function sendLeavePlanToHR(User $employee, string $action, string $leaveType = null): bool
+    {
+        $hrUsers = User::where('role', 'hr')->where('status', 'active')->get();
+        $success = true;
+        
+        foreach ($hrUsers as $hr) {
+            $message = "ELMS: {$employee->full_name} has {$action} a leave plan" . ($leaveType ? " for {$leaveType}" : "") . ". Please review.";
+            if (!$this->sendToUser($hr, $message)) {
+                $success = false;
+            }
+        }
+        
+        return $success;
+    }
+
+    /**
+     * Send leave plan notification to employee
+     */
+    public function sendLeavePlanToEmployee(User $user, string $action, string $leaveType = null): bool
     {
         $messages = [
-            'created' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been created and is pending HR approval.",
-            'approved' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been approved!",
-            'rejected' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been rejected. Please contact HR for details."
+            'created' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been submitted and is pending HR approval.",
+            'approved' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been APPROVED!",
+            'rejected' => "ELMS: Your leave plan" . ($leaveType ? " for {$leaveType}" : "") . " has been REJECTED. Please contact HR for details."
         ];
 
         $message = $messages[$action] ?? $messages['created'];
@@ -127,27 +154,33 @@ class SMSService
     }
 
     /**
-     * Format phone number for Twilio
+     * Format phone number for SMS
      */
     protected function formatPhoneNumber($phone): ?string
     {
         // Remove all non-digit characters except +
         $phone = preg_replace('/[^0-9+]/', '', $phone);
         
-        // Ensure it starts with + for international format
-        if (strlen($phone) === 10 && !str_starts_with($phone, '+')) {
-            // Assume US number if 10 digits
-            $phone = '+1' . $phone;
-        } elseif (strlen($phone) === 11 && !str_starts_with($phone, '+')) {
-            // Assume US number if 11 digits
+        // Handle Tanzanian phone numbers (start with 255, 07, or 06)
+        if (strlen($phone) === 10 && str_starts_with($phone, '0')) {
+            // Convert 07XXXXX to +2557XXXXX
+            $phone = '+255' . substr($phone, 1);
+        } elseif (strlen($phone) === 9 && str_starts_with($phone, '6')) {
+            // Convert 6XXXXX to +2556XXXXX
+            $phone = '+255' . $phone;
+        } elseif (strlen($phone) === 12 && str_starts_with($phone, '255')) {
+            // Already in international format without +
             $phone = '+' . $phone;
+        } elseif (strlen($phone) === 13 && str_starts_with($phone, '+255')) {
+            // Already properly formatted
+            // Keep as is
         } elseif (!str_starts_with($phone, '+')) {
-            // Add + if missing
+            // Add + if missing and assume international
             $phone = '+' . $phone;
         }
         
         // Validate phone number format (basic validation)
-        if (!preg_match('/^\+[1-9]\d{1,14}$/', $phone)) {
+        if (!preg_match('/^\+[1-9]\d{8,14}$/', $phone)) {
             return null;
         }
         
@@ -159,6 +192,6 @@ class SMSService
      */
     public function isConfigured(): bool
     {
-        return $this->client !== null;
+        return !empty($this->apiUrl) && !empty($this->senderId) && !empty($this->apiToken);
     }
 }

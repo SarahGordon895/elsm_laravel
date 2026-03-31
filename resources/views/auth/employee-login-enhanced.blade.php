@@ -19,6 +19,37 @@
                 <p class="text-sm sm:text-base text-gray-600">Personal Dashboard & Leave Management</p>
             </div>
 
+            <!-- Employee Features -->
+            <div class="bg-white shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 mb-6">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="text-center p-3 bg-green-50 rounded-lg">
+                        <div class="mx-auto h-8 w-8 flex items-center justify-center rounded-full bg-green-600 mb-2">
+                            <i class="fas fa-calendar text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="text-center p-3 bg-blue-50 rounded-lg">
+                        <div class="mx-auto h-8 w-8 flex items-center justify-center rounded-full bg-blue-600 mb-2">
+                            <i class="fas fa-history text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="text-center p-3 bg-purple-50 rounded-lg">
+                        <div class="mx-auto h-8 w-8 flex items-center justify-center rounded-full bg-purple-600 mb-2">
+                            <i class="fas fa-chart-pie text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="text-center p-3 bg-orange-50 rounded-lg">
+                        <div class="mx-auto h-8 w-8 flex items-center justify-center rounded-full bg-orange-600 mb-2">
+                            <i class="fas fa-file-alt text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="text-center p-3 bg-indigo-50 rounded-lg">
+                        <div class="mx-auto h-8 w-8 flex items-center justify-center rounded-full bg-indigo-600 mb-2">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Login Form -->
             <div class="bg-white shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
                 <div class="text-center mb-4 sm:mb-6 lg:mb-8">
@@ -42,7 +73,7 @@
                             </div>
                             <input id="email" name="email" type="email" required
                                    class="appearance-none rounded-lg relative block w-full pl-10 pr-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                                   placeholder="employee@company.com" value="david.brown@company.com">
+                                   placeholder="employee@company.com">
                         </div>
                     </div>
 
@@ -55,7 +86,7 @@
                             </div>
                             <input id="password" name="password" type="password" required
                                    class="appearance-none rounded-lg relative block w-full pl-10 pr-3 py-2 sm:py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                                   placeholder="Enter your password" value="password123">
+                                   placeholder="Enter your password">
                         </div>
                     </div>
 
@@ -120,8 +151,9 @@
             <div class="mt-6 bg-green-50 rounded-lg p-4">
                 <h4 class="text-sm font-medium text-green-900 mb-2">Demo Credentials</h4>
                 <div class="text-xs text-green-700 space-y-1">
-                    <p><strong>Email:</strong> david.brown@company.com</p>
-                    <p><strong>Password:</strong> password123</p>
+                    <p><strong>Employee:</strong> john.employee@imartgroup.co.tz / password</p>
+                    <p><strong>Employee:</strong> jane.employee@imartgroup.co.tz / password</p>
+                    <p><strong>Employee:</strong> bob.employee@imartgroup.co.tz / password</p>
                 </div>
             </div>
         </div>

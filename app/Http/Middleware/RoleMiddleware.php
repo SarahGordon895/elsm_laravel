@@ -18,11 +18,22 @@ class RoleMiddleware
         $allowedRoles = explode(',', $roles);
         $allowedRoles = array_map('trim', $allowedRoles);
         
-        $userRole = Auth::user()->role;
+        $user = Auth::user();
+        $userRole = $user->role;
         
         // Check if user's role is in the allowed roles
         if (!in_array($userRole, $allowedRoles)) {
-            abort(403, 'Unauthorized action.');
+            // Log the unauthorized access attempt
+            \Log::warning('Unauthorized access attempt', [
+                'user_id' => $user->id,
+                'user_role' => $userRole,
+                'allowed_roles' => $allowedRoles,
+                'ip' => $request->ip(),
+                'url' => $request->fullUrl(),
+                'method' => $request->method(),
+            ]);
+            
+            abort(403, 'Unauthorized action. Your role (' . $userRole . ') is not allowed to access this resource.');
         }
 
         return $next($request);

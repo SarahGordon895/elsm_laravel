@@ -21,16 +21,14 @@ class LeavePlanController extends Controller
      */
     public function index()
     {
-        $this->authorize('manage-leave-plans');
-        
         $user = Auth::user();
         
-        if ($user->hasRole('hr')) {
+        if ($user->role === 'hr') {
             // HR can see all leave plans
             $leavePlans = LeavePlan::with(['user', 'leaveType', 'approver'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(15);
-        } elseif ($user->hasRole('head_of_department')) {
+        } elseif ($user->role === 'head_of_department') {
             // HOD can see leave plans for their department
             $leavePlans = LeavePlan::with(['user', 'leaveType', 'approver'])
                 ->whereHas('user', function($query) use ($user) {
@@ -48,10 +46,120 @@ class LeavePlanController extends Controller
 
         return view('leave-plans.index', compact('leavePlans'));
     }
+    
+    /**
+     * Display official leave plan dashboard
+     */
+    public function dashboard()
+    {
+        $user = Auth::user();
+        
+        // Get leave plan statistics
+        $stats = [
+            'total_plans' => LeavePlan::count(),
+            'pending_plans' => LeavePlan::where('status', 'pending')->count(),
+            'approved_plans' => LeavePlan::where('status', 'approved')->count(),
+            'this_month_plans' => LeavePlan::whereMonth('created_at', now()->month)->count(),
+        ];
+        
+        // Get recent leave plans
+        $recentPlans = LeavePlan::with(['user', 'leaveType'])
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+        
+        // Get leave type distribution
+        $leaveTypeDistribution = LeavePlan::join('leave_types', 'leave_plans.leave_type_id', '=', 'leave_types.id')
+            ->selectRaw('leave_types.name, COUNT(*) as count')
+            ->groupBy('leave_types.id', 'leave_types.name')
+            ->orderBy('count', 'desc')
+            ->get();
+        
+        return view('leave-plans.dashboard', compact('stats', 'recentPlans', 'leaveTypeDistribution'));
+    }
+    
+    /**
+     * Display official leave plan report
+     */
+    public function report()
+    {
+        $user = Auth::user();
+        
+        // Get all leave plans with filtering
+        $leavePlans = LeavePlan::with(['user', 'leaveType', 'approver'])
+            ->when($user->role === 'head_of_department', function($query) use ($user) {
+                return $query->whereHas('user', function($q) use ($user) {
+                    $q->where('department_id', $user->department_id);
+                });
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Group by status
+        $byStatus = $leavePlans->groupBy('status');
+        
+        // Group by department
+        $byDepartment = $leavePlans->groupBy(function($plan) {
+            return $plan->user->department->name ?? 'Unknown';
+        });
+        
+        // Group by leave type
+        $byLeaveType = $leavePlans->groupBy(function($plan) {
+            return $plan->leaveType->name;
+        });
+        
+        return view('leave-plans.report', compact('leavePlans', 'byStatus', 'byDepartment', 'byLeaveType'));
+    }
 
     /**
-     * Show the form for creating a new leave plan.
+     * Show the form for editing the specified leave plan.
      */
+    public function edit(LeavePlan $leavePlan)
+    {
+        $user = Auth::user();
+        
+        // Check if user can edit this leave plan
+        if ($user->role !== 'hr' && $leavePlan->user_id !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $leaveTypes = LeaveType::where('paid', true)->get();
+        
+        return view('leave-plans.edit', compact('leavePlan', 'leaveTypes'));
+    }
+
+    /**
+     * Update the specified leave plan in storage.
+     */
+    public function update(Request $request, LeavePlan $leavePlan)
+    {
+        $user = Auth::user();
+        
+        // Check if user can update this leave plan
+        if ($user->role !== 'hr' && $leavePlan->user_id !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+        
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'leave_type_id' => 'required|exists:leave_types,id',
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'reason' => 'required|string|max:1000',
+        ]);
+        
+        $leavePlan->update([
+            'title' => $request->title,
+            'leave_type_id' => $request->leave_type_id,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'reason' => $request->reason,
+            'status' => 'pending', // Reset to pending when edited
+        ]);
+        
+        return redirect()->route('leave-plans.index')
+            ->with('status', 'Leave plan updated successfully!');
+    }
     public function create()
     {
         $this->authorize('manage-leave-plans');

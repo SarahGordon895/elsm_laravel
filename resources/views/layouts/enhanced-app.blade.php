@@ -230,7 +230,10 @@
                         <div class="relative">
                             <button class="p-2 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500">
                                 <i class="fas fa-bell text-lg"></i>
-                                @if(auth()->user()->unreadNotifications()->count() > 0)
+                                @php
+                                    $unreadCount = \App\Models\Notification::where('user_id', auth()->user()->id)->where('read', false)->count();
+                                @endphp
+                                @if($unreadCount > 0)
                                     <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 notification-badge"></span>
                                 @endif
                             </button>

@@ -63,7 +63,7 @@
         </div>
 
         <!-- Leave Balance Alerts -->
-        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg transition-shadow duration-200">
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg transition-shadow duration-200 cursor-pointer" onclick="window.location.href='{{ route('hr.leave-plans.index') }}'">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Low Balance Alerts</p>
@@ -102,11 +102,11 @@
                             Recent Leave Requests
                         </h2>
                         <div class="flex space-x-2">
-                            <a href="{{ route('leave-applications.pending') }}" 
+                            <a href="{{ route('hr.leave-applications') }}" 
                                class="text-sm text-yellow-600 hover:text-yellow-500 font-medium">
                                 Pending
                             </a>
-                            <a href="{{ route('leave-applications.index') }}" 
+                            <a href="{{ route('hr.leave-applications') }}" 
                                class="text-sm text-primary-600 hover:text-primary-500 font-medium">
                                 All
                             </a>
@@ -176,11 +176,11 @@
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-medium text-gray-900">
                             <i class="fas fa-users-cog mr-2 text-purple-500"></i>
-                            Employee Management
+                            Recent Employees
                         </h2>
-                        <a href="{{ route('admin.users') }}" 
-                           class="text-sm text-primary-600 hover:text-primary-500 font-medium">
-                            Manage All
+                        <a href="{{ route('hr.departments') }}" 
+                           class="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                            View All Departments
                         </a>
                     </div>
                 </div>
@@ -201,15 +201,11 @@
                                             </p>
                                         </div>
                                     </div>
-                                    <div class="flex space-x-2">
-                                        <a href="{{ route('admin.users.edit', $employee->id) }}" 
-                                           class="text-blue-600 hover:text-blue-500">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button onclick="toggleUserStatus({{ $employee->id }})" 
-                                                class="text-{{ $employee->status == 'active' ? 'red' : 'green' }}-600 hover:text-{{ $employee->status == 'active' ? 'red' : 'green' }}-500">
-                                            <i class="fas fa-{{ $employee->status == 'active' ? 'ban' : 'check' }}"></i>
-                                        </button>
+                                    <div class="flex items-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                            {{ $employee->status == 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                            {{ ucfirst($employee->status) }}
+                                        </span>
                                     </div>
                                 </div>
                             @endforeach
@@ -235,25 +231,30 @@
                     </h2>
                 </div>
                 <div class="p-6 space-y-3">
-                    <a href="{{ route('admin.users.create') }}" 
-                       class="block w-full text-center bg-primary-600 text-white px-4 py-3 rounded-md font-medium hover:bg-primary-700 transition-colors duration-200">
-                        <i class="fas fa-user-plus mr-2"></i>
-                        Add Employee
+                    <a href="{{ route('hr.leave-applications') }}" 
+                       class="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200 transform hover:scale-105">
+                        <i class="fas fa-calendar-check mr-2"></i>
+                        Pending Applications
                     </a>
-                    <a href="{{ route('admin.departments.create') }}" 
-                       class="block w-full text-center bg-purple-600 text-white px-4 py-3 rounded-md font-medium hover:bg-purple-700 transition-colors duration-200">
+                    <a href="{{ route('hr.departments') }}" 
+                       class="block w-full text-center bg-purple-600 text-white px-4 py-3 rounded-md font-medium hover:bg-purple-700 transition-colors duration-200 transform hover:scale-105">
                         <i class="fas fa-building mr-2"></i>
-                        Add Department
+                        View Departments
                     </a>
-                    <a href="{{ route('leave-types.index') }}" 
-                       class="block w-full text-center bg-green-600 text-white px-4 py-3 rounded-md font-medium hover:bg-green-700 transition-colors duration-200">
-                        <i class="fas fa-cogs mr-2"></i>
-                        Manage Leave Types
+                    <a href="{{ route('hr.leave-plans.index') }}" 
+                       class="block w-full text-center bg-green-600 text-white px-4 py-3 rounded-md font-medium hover:bg-green-700 transition-colors duration-200 transform hover:scale-105">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        Manage Leave Plans
                     </a>
-                    <a href="{{ route('reports.hr') }}" 
-                       class="block w-full text-center bg-blue-600 text-white px-4 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200">
-                        <i class="fas fa-chart-line mr-2"></i>
-                        HR Reports
+                    <a href="{{ route('analytics.leave') }}" 
+                       class="block w-full text-center bg-orange-600 text-white px-4 py-3 rounded-md font-medium hover:bg-orange-700 transition-colors duration-200 transform hover:scale-105">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        Leave Analytics
+                    </a>
+                    <a href="{{ route('hr.notifications') }}" 
+                       class="block w-full text-center bg-indigo-600 text-white px-4 py-3 rounded-md font-medium hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105">
+                        <i class="fas fa-bell mr-2"></i>
+                        Notifications
                     </a>
                 </div>
             </div>
@@ -290,25 +291,35 @@
                 </div>
             </div>
 
-            <!-- Notifications -->
+            <!-- HR Notifications -->
             <div class="bg-white rounded-lg shadow-md">
-                <div class="px-6 py-4 border-b border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors duration-200" onclick="window.location.href='{{ route('hr.notifications') }}'">
                     <h2 class="text-lg font-medium text-gray-900">
                         <i class="fas fa-bell mr-2 text-red-500"></i>
                         HR Notifications
+                        @if(isset($hrNotifications) && $hrNotifications->count() > 0)
+                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                {{ $hrNotifications->count() }}
+                            </span>
+                        @endif
                     </h2>
                 </div>
                 <div class="p-6">
                     @if(isset($hrNotifications) && $hrNotifications->count() > 0)
                         <div class="space-y-3">
                             @foreach($hrNotifications as $notification)
-                                <div class="flex items-start space-x-3 p-3 bg-{{ $notification->type == 'alert' ? 'red' : ($notification->type == 'warning' ? 'yellow' : 'blue') }}-50 rounded-lg">
+                                @php
+                                    $notificationType = is_object($notification) ? $notification->type : ($notification['type'] ?? 'info');
+                                    $notificationMessage = is_object($notification) ? $notification->message : ($notification['message'] ?? 'No message');
+                                    $notificationCreatedAt = is_object($notification) ? $notification->created_at : ($notification['created_at'] ?? now());
+                                @endphp
+                                <div class="flex items-start space-x-3 p-3 bg-{{ $notificationType == 'alert' ? 'red' : ($notificationType == 'warning' ? 'yellow' : 'blue') }}-50 rounded-lg">
                                     <div class="flex-shrink-0">
-                                        <i class="fas fa-{{ $notification->type == 'alert' ? 'exclamation-triangle' : ($notification->type == 'warning' ? 'exclamation' : 'info-circle') }} text-{{ $notification->type == 'alert' ? 'red' : ($notification->type == 'warning' ? 'yellow' : 'blue') }}-600"></i>
+                                        <i class="fas fa-{{ $notificationType == 'alert' ? 'exclamation-triangle' : ($notificationType == 'warning' ? 'exclamation' : 'info-circle') }} text-{{ $notificationType == 'alert' ? 'red' : ($notificationType == 'warning' ? 'yellow' : 'blue') }}-600"></i>
                                     </div>
                                     <div class="flex-1">
-                                        <p class="text-sm text-gray-900">{{ $notification->message }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ $notification->created_at->diffForHumans() }}</p>
+                                        <p class="text-sm text-gray-900">{{ $notificationMessage }}</p>
+                                        <p class="text-xs text-gray-500 mt-1">{{ \Carbon\Carbon::parse($notificationCreatedAt)->diffForHumans() }}</p>
                                     </div>
                                 </div>
                             @endforeach
@@ -329,7 +340,7 @@
 // Approve leave function
 function approveLeave(id) {
     if (confirm('Are you sure you want to approve this leave request?')) {
-        fetch(`/leave-applications/${id}/approve`, {
+        fetch(`/hr/leave-applications/${id}/approve`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -355,7 +366,7 @@ function approveLeave(id) {
 function rejectLeave(id) {
     const reason = prompt('Please provide a reason for rejection:');
     if (reason) {
-        fetch(`/leave-applications/${id}/reject`, {
+        fetch(`/hr/leave-applications/${id}/reject`, {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -375,31 +386,6 @@ function rejectLeave(id) {
         .catch(error => {
             console.error('Error:', error);
             alert('An error occurred while rejecting leave request.');
-        });
-    }
-}
-
-// Toggle user status
-function toggleUserStatus(id) {
-    if (confirm('Are you sure you want to toggle this user\'s status?')) {
-        fetch(`/admin/users/${id}/toggle-status`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Failed to update user status.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while updating user status.');
         });
     }
 }

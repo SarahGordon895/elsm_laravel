@@ -92,8 +92,81 @@ class EnhancedAdminController extends Controller
     }
     
     /**
-     * HR Dashboard - HR specific dashboard
+     * HR Leave Applications
      */
+    public function hrLeaveApplications()
+    {
+        $applications = LeaveApplication::with(['user', 'leaveType', 'approver'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+            
+        return view('hr.leave-applications', compact('applications'));
+    }
+    
+    /**
+     * HR Departments (View Only)
+     */
+    public function hrDepartments()
+    {
+        $departments = Department::withCount(['users' => function ($q) {
+            $q->where('role', 'employee');
+        }])->get();
+        
+        return view('hr.departments', compact('departments'));
+    }
+    
+    /**
+     * Show Leave Application
+     */
+    public function showLeaveApplication(LeaveApplication $application)
+    {
+        return view('hr.leave-application-detail', compact('application'));
+    }
+    
+    /**
+     * Approve Leave Application
+     */
+    public function approveLeaveApplication(LeaveApplication $application)
+    {
+        $application->status = 'approved';
+        $application->approved_by = Auth::id();
+        $application->approved_at = now();
+        $application->save();
+        
+        // Send notification to employee
+        // Add notification logic here
+        
+        return response()->json(['success' => true, 'message' => 'Leave application approved successfully']);
+    }
+    
+    /**
+     * Reject Leave Application
+     */
+    public function rejectLeaveApplication(Request $request, LeaveApplication $application)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+        
+        $application->status = 'rejected';
+        $application->rejected_by = Auth::id();
+        $application->rejected_at = now();
+        $application->rejection_reason = $request->reason;
+        $application->save();
+        
+        // Send notification to employee
+        // Add notification logic here
+        
+        return response()->json(['success' => true, 'message' => 'Leave application rejected successfully']);
+    }
+    public function hrNotifications()
+    {
+        $notifications = \App\Models\Notification::where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+            
+        return view('hr.notifications', compact('notifications'));
+    }
     public function hrDashboard()
     {
         $this->authorize('view-dashboard');
@@ -237,6 +310,14 @@ class EnhancedAdminController extends Controller
             'leaveBalanceSummary',
             'recentAuditLogs'
         ));
+    }
+
+    /**
+     * Admin Dashboard - Alias for dashboard method
+     */
+    public function adminDashboard()
+    {
+        return $this->dashboard();
     }
 
     public function users(Request $request)

@@ -15,8 +15,8 @@ return [
     */
 
     'mailgun' => [
-        'domain' => env('MAILGUN_DOMAIN'),
-        'secret' => env('MAILGUN_SECRET'),
+        'domain' => env('MAILGUN_DOMAIN', ''),
+        'secret' => env('MAILGUN_SECRET', ''),
         'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
         'scheme' => 'https',
     ],
@@ -46,6 +46,12 @@ return [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
+    ],
+
+    'imartgroup' => [
+        'api_url' => env('SMS_API_URL', 'https://smsservice.imartgroup.co.tz/api/v3/sms/send'),
+        'sender_id' => env('SMS_SENDER_ID', 'iMartGroup'),
+        'api_token' => env('SMS_API_TOKEN', '8|3xpIZ3iM4sSkbq2UiB9787dblc2yGel3SN1OGNP88b102083'),
     ],
 
 ];

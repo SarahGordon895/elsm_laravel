@@ -11,11 +11,11 @@
             <p class="mt-1 text-sm text-gray-500">System overview and analytics</p>
         </div>
         <div class="flex space-x-3">
-            <button class="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transform hover:scale-105 transition-all duration-200">
                 <i class="fas fa-download mr-2"></i>
                 Export Report
             </button>
-            <button class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <button class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 transform hover:scale-105 transition-all duration-200">
                 <i class="fas fa-cog mr-2"></i>
                 Settings
             </button>

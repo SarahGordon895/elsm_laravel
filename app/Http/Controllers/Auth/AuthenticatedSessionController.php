@@ -13,12 +13,12 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(): \Illuminate\View\View
     {
-        return view('auth.admin-login-simple');
+        return view('auth.login');
     }
 
     public function createEmployeeLogin(): \Illuminate\View\View
     {
-        return view('auth.employee-login-simple');
+        return view('auth.employee-login');
     }
 
     public function storeEmployee(Request $request)
@@ -102,7 +102,7 @@ class AuthenticatedSessionController extends Controller
         
         // HR - human resources
         if ($user->role === 'hr') {
-            return redirect()->intended(route('admin.dashboard'))
+            return redirect()->intended(route('hr.dashboard'))
                 ->with('status', 'Welcome, ' . $user->full_name . '! You are logged in as HR Administrator.');
         }
         
